@@ -23,6 +23,8 @@ pub const AppInput = struct {
     selected_agent_type: AgentType = .Settler,
     mouse_x: i32 = 0,
     mouse_y: i32 = 0,
+    add_benchmark_agents: bool = false,
+    add_stress_test_agents: bool = false,
 };
 
 pub const SdlRenderer = struct {
@@ -113,6 +115,8 @@ pub const SdlRenderer = struct {
             .agent_type_changed = false,
             .mouse_x = 0,
             .mouse_y = 0,
+            .add_benchmark_agents = false,
+            .add_stress_test_agents = false,
         };
         
         var mouse_x: f32 = 0;
@@ -175,6 +179,14 @@ pub const SdlRenderer = struct {
                             // Select Scout agent type
                             app_input.selected_agent_type = .Scout;
                             app_input.agent_type_changed = true;
+                        },
+                        c.SDLK_B => {
+                            // Benchmark - Add 10 random agents
+                            app_input.add_benchmark_agents = true;
+                        },
+                        c.SDLK_S => {
+                            // Stress test - Add 100 random agents
+                            app_input.add_stress_test_agents = true;
                         },
                         else => {},
                     }
@@ -351,14 +363,14 @@ pub const SdlRenderer = struct {
         drawCircle(renderer, mid_x, mid_y, @divTrunc(CELL_SIZE, 6), true);
     }
     // Render simulation status information
-    pub fn renderSimulationStatus(self: SdlRenderer, _: usize, paused: bool, spawn_mode: bool, selected_agent_type: AgentType, agent_count: usize) void {
+    pub fn renderSimulationStatus(self: SdlRenderer, _: usize, paused: bool, spawn_mode: bool, selected_agent_type: AgentType, agent_count: usize, fps: f32) void {
         if (self.renderer) |renderer| {
             // Status panel background
             const status_bg = c.SDL_FRect{
                 .x = 10,
                 .y = 10,
                 .w = 180,
-                .h = 100,
+                .h = 140, // Increased height for more status info
             };
             
             // Semi-transparent background
@@ -440,6 +452,34 @@ pub const SdlRenderer = struct {
             };
             _ = c.SDL_SetRenderDrawColor(renderer, agent_color[0], agent_color[1], agent_color[2], agent_color[3]);
             _ = c.SDL_RenderFillRect(renderer, &agent_rect);
+            
+            // Performance indicator
+            const fps_rect = c.SDL_FRect{
+                .x = 15,
+                .y = 75,
+                .w = if (fps > 0) @min(150, @as(f32, @floatFromInt(@as(i32, @intFromFloat(fps * 2.0))))) else 1,
+                .h = 10,
+            };
+            
+            // Color based on performance
+            if (fps > 40) {
+                _ = c.SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Green for good performance
+            } else if (fps > 20) {
+                _ = c.SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255); // Yellow for moderate performance
+            } else {
+                _ = c.SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Red for poor performance
+            }
+            _ = c.SDL_RenderFillRect(renderer, &fps_rect);
+            
+            // Agent count indicator
+            const count_text_rect = c.SDL_FRect{
+                .x = 15,
+                .y = 95,
+                .w = 100,
+                .h = 10,
+            };
+            _ = c.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            _ = c.SDL_RenderFillRect(renderer, &count_text_rect);
             
             // Draw a cursor indicator in spawn mode
             if (spawn_mode) {

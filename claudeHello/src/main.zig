@@ -50,9 +50,10 @@ pub fn main() !void {
         renderer.deinit();
     };
 
-    // Always print the initial state to terminal
+    // Print the initial state to terminal
     std.debug.print("Initial map state:\n", .{});
     try sim.printMap();
+    std.debug.print("\n", .{});
 
     // Simulation control flags
     var paused = false;
@@ -60,17 +61,77 @@ pub fn main() !void {
     var spawn_mode = false;
     var selected_agent_type: AgentType = .Settler;
     
+    // Variable to track performance
+    
     // Display help message
     std.debug.print("\nControls:\n", .{});
     std.debug.print("  SPACE: Pause/resume simulation\n", .{});
     std.debug.print("  RIGHT ARROW: Advance one step when paused\n", .{});
     std.debug.print("  A: Enter agent spawn mode (then click to place)\n", .{});
     std.debug.print("  1-6: Select agent type (1=Settler, 2=Explorer, 3=Builder, 4=Farmer, 5=Miner, 6=Scout)\n", .{});
+    std.debug.print("  B: Benchmark - Add 10 random agents\n", .{});
+    std.debug.print("  S: Stress test - Add 100 random agents\n", .{});
     std.debug.print("  ESC: Quit\n\n", .{});
 
+    // Define helper functions using simpler random approach
+    const getRandomPosition = struct {
+        fn get(width: usize, height: usize, seed: u64) struct { x: usize, y: usize } {
+            // Use simple hash of seed to generate position
+            const hash = seed *% 16777619;
+            const x = @mod(hash, width);
+            const y = @mod(hash >> 32, height);
+            return .{ .x = x, .y = y };
+        }
+    }.get;
+    
+    const getRandomAgentType = struct {
+        fn get(seed: u64) AgentType {
+            // Use simple modulus to get agent type
+            const type_idx = @mod(seed, 6);
+            return switch (type_idx) {
+                0 => .Settler,
+                1 => .Explorer,
+                2 => .Builder,
+                3 => .Farmer,
+                4 => .Miner,
+                5 => .Scout,
+                else => .Settler,
+            };
+        }
+    }.get;
+    
+    const addRandomAgents = struct {
+        fn add(simulation: *Simulation, base_seed: u64, count: usize, width: usize, height: usize) !void {
+            std.debug.print("Adding {d} random agents...\n", .{count});
+            
+            var i: usize = 0;
+            while (i < count) : (i += 1) {
+                const seed = base_seed +% i;
+                const pos = getRandomPosition(width, height, seed);
+                const agent_type = getRandomAgentType(seed);
+                const health = @as(u8, 75) + @as(u8, @intCast(@mod(seed, 51))); // 75-125 range
+                const energy = @as(u8, 75) + @as(u8, @intCast(@mod(seed >> 32, 51))); // 75-125 range
+                
+                try simulation.spawnAgent(.{
+                    .x = pos.x,
+                    .y = pos.y,
+                    .type = agent_type,
+                    .health = health,
+                    .energy = energy,
+                });
+            }
+            
+            std.debug.print("Added {d} random agents. Total agents: {d}\n", .{count, simulation.agents.items.len});
+        }
+    }.add;
+    
     // Simulation loop
     var quit = false;
     var i: usize = 0;
+    var last_performance_check = std.time.milliTimestamp();
+    var frames_since_check: usize = 0;
+    var current_fps: f32 = 0;
+    
     while (!quit) {
         // Process inputs
         var app_input = AppInput{ .quit = false, .paused = paused, .step = false, .spawn_requested = false };
@@ -117,18 +178,48 @@ pub fn main() !void {
                         });
                     }
                 }
+                
+                // Handle benchmark request (add 10 agents)
+                if (app_input.add_benchmark_agents) {
+                    const timestamp = std.time.timestamp();
+                    const seed: u64 = @intCast(timestamp);
+                    try addRandomAgents(&sim, seed, 10, map_width, map_height);
+                }
+                
+                // Handle stress test request (add 100 agents)
+                if (app_input.add_stress_test_agents) {
+                    const timestamp = std.time.timestamp();
+                    const seed: u64 = @intCast(timestamp);
+                    try addRandomAgents(&sim, seed, 100, map_width, map_height);
+                }
             }
         }
         
         // Update simulation if not paused or if step requested
-        if ((!paused or step_once) and i < 1000) {
+        if (!paused or step_once) {
+            // Update simulation and measure performance
+            
             try sim.update();
             i += 1;
+            frames_since_check += 1;
             step_once = false; // Reset step flag
             
-            // Always print ASCII version to terminal for each update
-            std.debug.print("\nAfter update {d}:\n", .{i});
-            try sim.printMap();
+            // Calculate performance metrics every second
+            const current_time = std.time.milliTimestamp();
+            const elapsed = current_time - last_performance_check;
+            
+            if (elapsed >= 1000) { // Update every second
+                current_fps = @as(f32, @floatFromInt(frames_since_check)) / (@as(f32, @floatFromInt(elapsed)) / 1000.0);
+                // Print step count and performance metrics 
+                std.debug.print("\rStep: {d} | ", .{i});
+                sim.printStats();
+                std.debug.print(" | {d:.2} updates/sec", .{current_fps});
+                // Clear to end of line and return to start (don't add newline)
+                std.debug.print("                      \r", .{});
+                
+                frames_since_check = 0;
+                last_performance_check = current_time;
+            }
         }
         
         // Render with SDL if enabled
@@ -146,7 +237,8 @@ pub fn main() !void {
                     paused, 
                     spawn_mode, 
                     selected_agent_type, 
-                    sim.agents.items.len
+                    sim.agents.items.len,
+                    current_fps
                 );
                 
                 renderer.endFrame();
@@ -159,14 +251,15 @@ pub fn main() !void {
                 }
             }
         } else {
-            // In non-SDL mode, just terminate after a certain number of iterations
-            if (i >= 10) {
-                break;
-            }
+            // In non-SDL mode, add a small delay and continue indefinitely
+            std.time.sleep(100 * std.time.ns_per_ms);
         }
     }
 
-    // Save map to file
+    // Print final state and save map to file
+    std.debug.print("\n\nFinal map state after {d} steps:\n", .{i});
+    try sim.printMap();
+    
     try sim.saveMapToFile("map_state.txt");
     std.debug.print("\nMap saved to file 'map_state.txt'\n", .{});
 }
