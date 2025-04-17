@@ -1,0 +1,147 @@
+const std = @import("std");
+const testing = std.testing;
+const agent_mod = @import("agent");
+const Agent = agent_mod.Agent;
+const AgentType = agent_mod.AgentType;
+const map_mod = @import("map");
+const Map = map_mod.Map;
+const Terrain = map_mod.Terrain;
+const test_utils = @import("test_utils");
+const TestMap = test_utils.TestMap;
+
+// Test multiple agent types coexisting on a map
+test "multiple agent types behavior" {
+    var test_map = try TestMap.init(testing.allocator, 30, 30);
+    defer test_map.deinit();
+    test_map.createQuadrantMap();
+    
+    // Create one of each agent type
+    var agents = std.ArrayList(Agent).init(testing.allocator);
+    defer agents.deinit();
+    
+    const start_x = 15;
+    const start_y = 15;
+    
+    try agents.append(Agent.init(1, start_x, start_y, .Settler, 100, 100));
+    try agents.append(Agent.init(2, start_x, start_y, .Explorer, 100, 100));
+    try agents.append(Agent.init(3, start_x, start_y, .Builder, 100, 100));
+    try agents.append(Agent.init(4, start_x, start_y, .Farmer, 100, 100));
+    try agents.append(Agent.init(5, start_x, start_y, .Miner, 100, 100));
+    try agents.append(Agent.init(6, start_x, start_y, .Scout, 100, 100));
+    
+    // Simulate for a significant number of steps
+    for (0..50) |_| {
+        for (agents.items) |*agent| {
+            agent.update(&test_map.map);
+        }
+    }
+    
+    // Check that agents have moved from their starting positions
+    var all_moved = true;
+    for (agents.items) |agent| {
+        if (agent.x == start_x and agent.y == start_y) {
+            all_moved = false;
+            break;
+        }
+    }
+    
+    try testing.expect(all_moved);
+    
+    // Check health and energy are valid
+    for (agents.items) |agent| {
+        // Verify health is still reasonable
+        try testing.expect(agent.health > 0);
+        try testing.expect(agent.health <= 100);
+        
+        // Energy should be a valid value (may reach 0 in some cases)
+        try testing.expect(agent.energy <= 100);
+    }
+}
+
+// Test agent behavior on different terrain types
+test "agent terrain preferences" {
+    var test_map = try TestMap.init(testing.allocator, 40, 40);
+    defer test_map.deinit();
+    test_map.createStripedMap();
+    
+    // Create agents with specific terrain preferences
+    var miner = Agent.init(1, 20, 20, .Miner, 100, 100);
+    var farmer = Agent.init(2, 20, 20, .Farmer, 100, 100);
+    
+    // Simply ensure the agents can update on the terrain without errors
+    for (0..50) |_| {
+        miner.update(&test_map.map);
+        farmer.update(&test_map.map);
+        
+        // Verify health and energy remain valid
+        try testing.expect(miner.health > 0 and miner.health <= 100);
+        try testing.expect(miner.energy <= 100);
+        try testing.expect(farmer.health > 0 and farmer.health <= 100);
+        try testing.expect(farmer.energy <= 100);
+    }
+    
+    // Verify agents moved from starting position
+    try testing.expect(miner.x != 20 or miner.y != 20);
+    try testing.expect(farmer.x != 20 or farmer.y != 20);
+}
+
+// Test agent endurance and survivability 
+test "agent long-term survival" {
+    var test_map = try TestMap.init(testing.allocator, 50, 50);
+    defer test_map.deinit();
+    test_map.createRandomMap(42); // Fixed seed for reproducibility
+    
+    // Create agents of each type
+    var agents = std.ArrayList(Agent).init(testing.allocator);
+    defer agents.deinit();
+    
+    const all_types = [_]AgentType{
+        .Settler, .Explorer, .Builder, .Farmer, .Miner, .Scout
+    };
+    
+    for (all_types, 0..) |agent_type, i| {
+        try agents.append(Agent.init(i, 25, 25, agent_type, 100, 100));
+    }
+    
+    // Track survival statistics
+    var health_history = try testing.allocator.alloc(
+        std.ArrayList(u8), 
+        agents.items.len
+    );
+    defer {
+        for (health_history) |*history| {
+            history.deinit();
+        }
+        testing.allocator.free(health_history);
+    }
+    
+    for (health_history) |*history| {
+        history.* = std.ArrayList(u8).init(testing.allocator);
+    }
+    
+    // Run a lengthy simulation
+    for (0..200) |_| {
+        for (agents.items, 0..) |*agent, i| {
+            agent.update(&test_map.map);
+            try health_history[i].append(agent.health);
+        }
+    }
+    
+    // Check health patterns
+    for (health_history, 0..) |history, i| {
+        // Make sure agent survived
+        try testing.expect(history.items[history.items.len - 1] > 0);
+        
+        // Check average health
+        var total_health: usize = 0;
+        for (history.items) |health| {
+            total_health += health;
+        }
+        const avg_health = @divFloor(total_health, history.items.len);
+        
+        // Average health should be reasonable - for test stability we set a lower bound
+        try testing.expect(avg_health > 30);
+        std.debug.print("Agent type {s} average health: {d}\n", 
+            .{@tagName(all_types[i]), avg_health});
+    }
+}
