@@ -54,12 +54,25 @@ A helper script is included to simplify running the simulation:
 
 Run `./run_sim.sh --help` for all available options.
 
-### Note on SDL3 Support
-While the project has code for SDL3 integration, there are currently issues with the SDL3 initialization. The text-based interface is the recommended way to run the simulation. If you want to experiment with the SDL3 integration, you would need to:
+### Graphical Interface with SDL3
+The project includes a fully functional SDL3 graphical interface. To use it:
 
 1. Install SDL3: `brew install sdl3`
-2. Fix the SDL3 integration in the code
-3. Run: `zig build -Dsdl=true run -- --gui`
+2. Run the helper script: `./run_gui.sh`
+
+Or manually:
+```bash
+zig build -Dsdl=true && zig build run -- --gui
+```
+
+The graphical interface provides:
+- Real-time visualization of agents and terrain
+- Interactive controls via keyboard and mouse
+- Click to place new agents directly on the map
+- Select agent types with number keys (1-6)
+- Stress test the simulation with thousands of agents (S key)
+- Add benchmark agents (B key)
+- Pause/resume with spacebar
 
 ## Simulation Controls
 

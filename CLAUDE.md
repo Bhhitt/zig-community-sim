@@ -22,16 +22,21 @@ My end goal is to build a community simulation in ascii or some other light grap
 - **ESC**: Quit
 
 ## SDL3 Integration
-- The project contains a renderer.zig module that supports SDL3 visualization
+- The project contains a fully functional SDL3 visualization system
 - To enable SDL3 support:
-  1. Ensure SDL3 is installed or available via the included libraries
-  2. Update build.zig to link SDL3
-  3. Set USE_SDL = true in main.zig (currently true by default)
+  1. Install SDL3 via Homebrew: `brew install sdl3`
+  2. Use the helper script: `./run_gui.sh` to automatically detect and use SDL3
+  3. Or run directly: `zig build -Dsdl=true && zig build run -- --gui`
 
-Note: Only a few SDL3 files are actually needed for this project:
-- SDL3/vendored/SDL/build/libSDL3.dylib (the main library file)
-- SDL3/vendored/SDL/include/SDL3/*.h (header files - specifically SDL.h and related graphics headers)
-- The rest of the SDL3 source files and build artifacts are not necessary for this project
+The SDL3 integration provides:
+- Color-coded terrain visualization
+- Unique colors for different agent types
+- Visual representation of agent interactions with connecting lines
+- Interactive controls via keyboard and mouse
+- Real-time addition of agents by clicking on the map
+- Agent type selection with number keys (1-6)
+- Performance metrics display
+- Stress testing capabilities with thousands of agents
 
 ## Agent Types and Behaviors
 The simulation includes six agent types, each with unique behaviors:

@@ -43,8 +43,7 @@
 ## SDL3 Graphical Visualization
 - Created renderer.zig with SDL3 integration
 - Implemented color-coded terrain rendering with grid layout
-- Added circular agent representation with different colors by type
-- Implemented energy indicator bars for each agent
+- Added agent representation with different colors by type
 - Added interaction visualization with connecting lines
 - Maintained original ASCII output alongside graphical display
 - Added configuration to switch between ASCII-only and SDL mode
@@ -52,6 +51,18 @@
 - Implemented input handling (pause, step, spawn, agent selection, exit)
 - Added spawn mode allowing user to place agents with mouse clicks
 - Enhanced visualization with agent-type selection controls
+
+## SDL3 Integration and Compatibility
+- Updated build.zig to properly link with SDL3 from Homebrew
+- Fixed SDL3 API compatibility issues for SDL 3.2.x
+- Updated renderer code to use new SDL3 types (SDL_FRect instead of SDL_Rect)
+- Fixed keyboard event handling to use scancode-based input
+- Updated mouse event handling to handle floating-point coordinates
+- Fixed rendering calls to use SDL3's updated API
+- Added helper script (run_gui.sh) to detect and use SDL3
+- Made SDL3 support optional with fallback to text mode
+- Added detailed debug output for SDL3 initialization
+- Fixed integer division to use @divTrunc for signed integers
 
 ## Multi-threading and Performance Improvements
 - Implemented multi-threaded agent updates using Zig's standard thread API
