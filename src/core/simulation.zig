@@ -5,6 +5,7 @@ const Map = @import("map").Map;
 const InteractionSystem = @import("interactions").InteractionSystem;
 const TerrainGenerator = @import("terrain").TerrainGenerator;
 const Thread = std.Thread;
+const agent_update_system = @import("agent_update_system");
 
 const max_agents = 100000; // Increased to handle stress tests
 const thread_count = 10; // Number of threads to use for agent updates
@@ -86,7 +87,7 @@ pub const Simulation = struct {
 
             if (!is_interacting) {
                 // Update agent, passing the map for terrain interactions
-                agents[i].update(&simulation.map);
+                agent_update_system.updateAgent(&agents[i], &simulation.map);
 
                 // Map bounds are now checked within the agent update, but just to be safe
                 if (agents[i].x >= simulation.map.width) {
@@ -107,7 +108,7 @@ pub const Simulation = struct {
             // Use original single-threaded approach for small agent counts
             for (self.agents.items) |*agent| {
                 if (!self.interaction_system.isAgentInteracting(agent.id)) {
-                    agent.update(&self.map);
+                    agent_update_system.updateAgent(agent, &self.map);
 
                     // Map bounds are now checked within the agent update, but just to be safe
                     if (agent.x >= self.map.width) {

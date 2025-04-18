@@ -1,19 +1,31 @@
+// TerrainEffects module defines how different terrain types affect agents in the simulation.
 const std = @import("std");
-const Terrain = @import("../world/terrain.zig").Terrain;
-const AgentType = @import("agent_type.zig").AgentType;
+const AgentType = @import("agent_type").AgentType;
+const Terrain = @import("terrain").Terrain;
 
-// Data structure for terrain effects
+/// Stores the effect values for a terrain-agent type combination.
 pub const TerrainEffectData = struct {
-    movement_cost: u8, // Additional energy cost for this terrain
-    movement_prob: u8, // Probability of successful movement (out of 100)
-    energy_gain: u8,   // Energy gained from being on this terrain (per update)
-    health_effect: i8, // Health effect from being on this terrain (per update, can be negative)
+    /// Additional energy cost for this terrain.
+    movement_cost: u8, 
+    /// Probability of successful movement (out of 100).
+    movement_prob: u8, 
+    /// Energy gained from being on this terrain (per update).
+    energy_gain: u8,   
+    /// Health effect from being on this terrain (per update, can be negative).
+    health_effect: i8, 
 };
 
-// Represents how terrain affects different agent types
+/// Provides methods to get terrain effects for agent and terrain types.
 pub const TerrainEffect = struct {
-    // Helper function to get terrain effect data
-    fn getData(agent_type: AgentType, terrain: Terrain) TerrainEffectData {
+    /// Returns the effect data for a given agent type and terrain.
+    /// 
+    /// # Parameters
+    /// - `agent_type_`: The type of agent.
+    /// - `terrain_`: The type of terrain.
+    /// 
+    /// # Returns
+    /// The terrain effect data for the given agent and terrain.
+    fn getData(agent_type_: AgentType, terrain_: Terrain) TerrainEffectData {
         // Define terrain effect data tables for each agent type
         // These could be moved to a data file/constant in a larger system
         const terrain_effects = [6][5]TerrainEffectData{
@@ -67,19 +79,36 @@ pub const TerrainEffect = struct {
             },
         };
         
-        const agent_idx = @intFromEnum(agent_type);
-        const terrain_idx = @intFromEnum(terrain);
+        const agent_idx = @intFromEnum(agent_type_);
+        const terrain_idx = @intFromEnum(terrain_);
         
         return terrain_effects[agent_idx][terrain_idx];
     }
     
-    // Get terrain effects based on agent type and terrain
-    pub fn forAgentAndTerrain(agent_type: AgentType, terrain: Terrain) TerrainEffectData {
-        return getData(agent_type, terrain);
+    /// Gets terrain effects based on agent type and terrain.
+    /// 
+    /// # Parameters
+    /// - `agent_type_`: The type of agent.
+    /// - `terrain_`: The type of terrain.
+    /// 
+    /// # Returns
+    /// The terrain effect data for the given agent and terrain.
+    pub fn forAgentAndTerrain(agent_type_: AgentType, terrain_: Terrain) TerrainEffectData {
+        return getData(agent_type_, terrain_);
     }
 };
 
-// Calculate energy cost for movement
+/// Calculates the energy cost for movement.
+/// 
+/// # Parameters
+/// - `base_cost`: The base energy cost.
+/// - `moved`: Whether the agent moved.
+/// - `dx`: The change in x position.
+/// - `dy`: The change in y position.
+/// - `terrain_cost`: The terrain movement cost.
+/// 
+/// # Returns
+/// The calculated energy cost.
 pub fn calculateEnergyCost(
     base_cost: u8, 
     moved: bool, 
@@ -100,7 +129,16 @@ pub fn calculateEnergyCost(
     return @min(cost, 20);
 }
 
-// Apply terrain health effects to health value
+/// Applies terrain health effects to the health value.
+/// 
+/// # Parameters
+/// - `health`: The current health.
+/// - `health_effect`: The health effect from the terrain.
+/// - `max_health`: The maximum health.
+/// - `health_regen`: The natural health regeneration.
+/// 
+/// # Returns
+/// The new health value after applying the terrain health effects.
 pub fn applyHealthEffects(health: u8, health_effect: i8, max_health: u8, health_regen: u8) u8 {
     var new_health = health;
     
@@ -125,7 +163,15 @@ pub fn applyHealthEffects(health: u8, health_effect: i8, max_health: u8, health_
     return new_health;
 }
 
-// Apply terrain energy effects to energy value
+/// Applies terrain energy effects to the energy value.
+/// 
+/// # Parameters
+/// - `energy`: The current energy.
+/// - `energy_gain`: The energy gain from the terrain.
+/// - `max_energy`: The maximum energy.
+/// 
+/// # Returns
+/// The new energy value after applying the terrain energy effects.
 pub fn applyEnergyEffects(energy: u8, energy_gain: u8, max_energy: u8) u8 {
     if (energy_gain > 0) {
         return @min(energy + energy_gain, max_energy);

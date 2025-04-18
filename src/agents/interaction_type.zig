@@ -1,5 +1,6 @@
-const std = @import("std");
+// Defines types of interactions agents can have and related logic
 
+/// Represents the type of interaction between two agents.
 pub const InteractionType = enum {
     Greeting,
     Trading,
@@ -7,6 +8,7 @@ pub const InteractionType = enum {
     Teaching,
     Resource,
     
+    /// Returns a symbol representing the interaction type.
     pub fn getSymbol(self: InteractionType) u8 {
         return switch (self) {
             .Greeting => 'G',
@@ -17,7 +19,7 @@ pub const InteractionType = enum {
         };
     }
     
-    // Determines the appropriate interaction type based on the agent types
+    /// Determines the appropriate interaction type based on the agent types.
     pub fn chooseInteractionType(
         agent1_type: @import("agent_type").AgentType, 
         agent2_type: @import("agent_type").AgentType, 

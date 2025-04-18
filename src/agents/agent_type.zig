@@ -1,16 +1,29 @@
+// AgentType module defines the types of agents and their movement logic in the simulation.
 const std = @import("std");
 const movement_types = @import("movement_types");
 const MovementTendency = movement_types.MovementTendency;
 const MovementPattern = movement_types.MovementPattern;
 
+/// Represents the type of an agent in the simulation.
+/// 
+/// Each agent type has its own movement tendency and pattern, which determine how it moves in the simulation.
 pub const AgentType = enum {
+    /// A settler agent, which settles in a location and has moderate movement.
     Settler,
+    /// An explorer agent, which explores the surroundings and has high movement.
     Explorer,
+    /// A builder agent, which builds structures and has medium movement.
     Builder,
+    /// A farmer agent, which farms resources and has moderate movement.
     Farmer,
+    /// A miner agent, which mines resources and has high movement.
     Miner,
+    /// A scout agent, which scouts the surroundings and has very high movement.
     Scout,
-    
+
+    /// Returns the symbol representing the agent type.
+    /// 
+    /// Each agent type has a unique symbol that can be used to identify it.
     pub fn getSymbol(self: AgentType) u8 {
         return switch (self) {
             .Settler => 'S',
@@ -21,7 +34,10 @@ pub const AgentType = enum {
             .Scout => 'C',  // Scout uses 'C' for cartographer
         };
     }
-    
+
+    /// Returns the base energy cost for the agent type.
+    /// 
+    /// Each agent type has a base energy cost that determines how much energy it consumes.
     pub fn getBaseCost(self: AgentType) u8 {
         return switch (self) {
             .Explorer => 1, // Explorers are efficient
@@ -32,8 +48,10 @@ pub const AgentType = enum {
             .Scout => 1,    // Scouts are energy-efficient
         };
     }
-    
-    // Returns the movement tendency of each agent type
+
+    /// Returns the movement tendency for the agent type.
+    /// 
+    /// The movement tendency determines how the agent moves in the simulation.
     pub fn getMovementTendency(self: AgentType) MovementTendency {
         return switch (self) {
             .Settler => .{
@@ -86,8 +104,10 @@ pub const AgentType = enum {
             },
         };
     }
-    
-    // Get the movement pattern for this agent type
+
+    /// Returns the movement pattern for the agent type.
+    /// 
+    /// The movement pattern determines how the agent moves in the simulation.
     pub fn getMovementPattern(self: AgentType) MovementPattern {
         return switch (self) {
             .Settler => .{

@@ -1,15 +1,24 @@
+// Map module manages the simulation world grid, terrain, and agent placement.
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Agent = @import("agent").Agent;
 const Interaction = @import("agent").Interaction;
 pub const Terrain = @import("terrain").Terrain;
 
+/// Represents the simulation world grid, terrain, and agent placement.
 pub const Map = struct {
+    /// The width of the map grid.
     width: usize,
+    /// The height of the map grid.
     height: usize,
+    /// The 2D grid of terrain cells.
     grid: []Terrain,
+    /// The allocator used to manage map resources.
     allocator: Allocator,
 
+    /// Initializes a new map with the given dimensions and allocator.
+    ///
+    /// Returns a new Map instance with the specified width, height, and allocator.
     pub fn init(allocator: Allocator, width: usize, height: usize) !Map {
         const grid = try allocator.alloc(Terrain, width * height);
         // Initialize with empty terrain
@@ -25,10 +34,16 @@ pub const Map = struct {
         };
     }
 
+    /// Deinitializes the map and frees resources.
+    ///
+    /// Releases the map's grid memory and any other allocated resources.
     pub fn deinit(self: *Map) void {
         self.allocator.free(self.grid);
     }
 
+    /// Returns the terrain at the given coordinates, or .Empty if out-of-bounds.
+    ///
+    /// Retrieves the terrain type at the specified x, y coordinates.
     pub fn getTerrainAt(self: *const Map, x: usize, y: usize) Terrain {
         if (x >= self.width or y >= self.height) {
             return .Empty; // Default for out-of-bounds
@@ -36,6 +51,9 @@ pub const Map = struct {
         return self.grid[y * self.width + x];
     }
 
+    /// Sets the terrain at the given coordinates, ignoring out-of-bounds.
+    ///
+    /// Updates the terrain type at the specified x, y coordinates.
     pub fn setTerrain(self: *Map, x: usize, y: usize, terrain: Terrain) void {
         if (x >= self.width or y >= self.height) {
             return; // Ignore out-of-bounds
@@ -43,7 +61,9 @@ pub const Map = struct {
         self.grid[y * self.width + x] = terrain;
     }
     
-    // Print the map to the terminal with agents and interactions
+    /// Prints the map to the terminal with agents and interactions.
+    ///
+    /// Displays the map grid, agents, and interactions to the console.
     pub fn print(self: *const Map, agents: []const Agent, interactions: []const Interaction) !void {
         const stdout = std.io.getStdOut().writer();
         
@@ -65,14 +85,12 @@ pub const Map = struct {
                 display_grid[y * self.width + x] = symbol;
             }
         }
-        
-        // Place agents on grid
+        // Place agents on the grid
         for (agents) |agent| {
             if (agent.x < self.width and agent.y < self.height) {
                 display_grid[agent.y * self.width + agent.x] = agent.getSymbol();
             }
         }
-        
         // Print the grid
         try stdout.print("\n", .{});
         for (0..self.height) |y| {
@@ -81,38 +99,16 @@ pub const Map = struct {
             }
             try stdout.print("\n", .{});
         }
-        
         // Print interactions
         try stdout.print("\nActive Interactions ({d}):\n", .{interactions.len});
         for (interactions) |interaction| {
-            // Find agent symbols
-            var agent1_symbol: u8 = '?';
-            var agent2_symbol: u8 = '?';
-            
-            for (agents) |agent| {
-                if (agent.id == interaction.agent1_id) {
-                    agent1_symbol = agent.getSymbol();
-                } else if (agent.id == interaction.agent2_id) {
-                    agent2_symbol = agent.getSymbol();
-                }
-            }
-            
-            try stdout.print("  {c} <-> {c} ({s}, {d} ticks left)\n", 
-                .{
-                    agent1_symbol, 
-                    agent2_symbol, 
-                    @tagName(interaction.type), 
-                    interaction.duration
-                }
-            );
+            try stdout.print("  {s}\n", .{interaction.toString()});
         }
-        
-        // Print legend
-        try stdout.print("\nLegend: [Space]=Empty [,]=Grass [F]=Forest [M]=Mountain [W]=Water\n", .{});
-        try stdout.print("Agents: [S]=Settler [E]=Explorer [B]=Builder [F]=Farmer [M]=Miner [C]=Scout\n", .{});
     }
-    
-    // Save the map state to a file
+
+    /// Saves the map, agents, and interactions to a file.
+    ///
+    /// Writes the map grid, agents, and interactions to the specified file.
     pub fn saveToFile(self: *const Map, agents: []const Agent, interactions: []const Interaction, filename: []const u8) !void {
         var file = try std.fs.cwd().createFile(filename, .{});
         defer file.close();

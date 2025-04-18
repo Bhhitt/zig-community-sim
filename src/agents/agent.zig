@@ -24,6 +24,17 @@ pub const Interaction = struct {
             .duration = 3, // Default duration
         };
     }
+    
+    pub fn toString(self: Interaction) []const u8 {
+        // Returns a string representation of the interaction
+        // Format: "Agent1 <-> Agent2 (Type, Duration left)"
+        // Note: This is a simplified version. For more details, adjust as needed.
+        return std.fmt.allocPrint(
+            std.heap.page_allocator,
+            "{d} <-> {d} ({s}, {d} ticks left)",
+            .{ self.agent1_id, self.agent2_id, @tagName(self.type), self.duration }
+        ) catch "<interaction>";
+    }
 };
 
 // TerrainEffectData stores the actual effect values
@@ -166,7 +177,7 @@ pub const Agent = struct {
     }
     
     // Calculate movement direction based on agent type and pattern
-    fn calculateMovement(self: *Agent, pattern: MovementPattern) MovementResult {
+    pub fn calculateMovement(self: *Agent, pattern: MovementPattern) MovementResult {
         const random_value = self.updateSeed();
         var result = MovementResult{};
         
@@ -278,7 +289,7 @@ pub const Agent = struct {
     }
     
     // Calculate new position with boundary checks
-    fn calculateNewPosition(self: Agent, dx: i8, dy: i8) struct { x: usize, y: usize } {
+    pub fn calculateNewPosition(self: Agent, dx: i8, dy: i8) struct { x: usize, y: usize } {
         var new_x = self.x;
         var new_y = self.y;
         
@@ -286,31 +297,31 @@ pub const Agent = struct {
         if (dx < 0) {
             const abs_dx = @abs(dx);
             if (new_x >= abs_dx) {
-                new_x -= @intCast(abs_dx);
+                new_x -= @as(u8, @intCast(abs_dx));
             } else {
                 new_x = 0;
             }
         } else if (dx > 0) {
-            new_x += @intCast(dx);
+            new_x += @as(u8, @intCast(dx));
         }
         
         // Handle y-direction movement with boundary checks
         if (dy < 0) {
             const abs_dy = @abs(dy);
             if (new_y >= abs_dy) {
-                new_y -= @intCast(abs_dy);
+                new_y -= @as(u8, @intCast(abs_dy));
             } else {
                 new_y = 0;
             }
         } else if (dy > 0) {
-            new_y += @intCast(dy);
+            new_y += @as(u8, @intCast(dy));
         }
         
         return .{ .x = new_x, .y = new_y };
     }
     
     // Calculate energy cost for movement
-    fn calculateEnergyCost(_: Agent, dx: i8, dy: i8, base_cost: u8, terrain_cost: u8) u8 {
+    pub fn calculateEnergyCost(_: Agent, dx: i8, dy: i8, base_cost: u8, terrain_cost: u8) u8 {
         // If not moving, no energy cost
         if (dx == 0 and dy == 0) return 0;
         
@@ -326,7 +337,7 @@ pub const Agent = struct {
     }
     
     // Apply health effects from terrain
-    fn applyHealthEffects(self: *Agent, health_effect: i8) void {
+    pub fn applyHealthEffects(self: *Agent, health_effect: i8) void {
         if (health_effect > 0) {
             // Health boost
             self.health = @min(self.health + @as(u8, @intCast(health_effect)), max_health);
@@ -334,7 +345,7 @@ pub const Agent = struct {
             // Health penalty
             const health_penalty = @abs(health_effect);
             if (self.health > health_penalty) {
-                self.health -= @intCast(health_penalty);
+                self.health -= @as(u8, @intCast(health_penalty));
             } else {
                 self.health = 1; // Don't let health drop to 0 automatically
             }
@@ -342,69 +353,6 @@ pub const Agent = struct {
             // Natural health regeneration when no terrain effect
             if (self.health < max_health) {
                 self.health = @min(self.health + health_regen, max_health);
-            }
-        }
-    }
-    
-    pub fn update(self: *Agent, map: *const Map) void {
-        // Get movement pattern for this agent type
-        const movement_pattern = self.type.getMovementPattern();
-        
-        // Calculate movement direction
-        const movement = self.calculateMovement(movement_pattern);
-        const dx = movement.dx;
-        const dy = movement.dy;
-        
-        // Get current terrain the agent is on
-        const current_terrain = map.getTerrainAt(self.x, self.y);
-        const terrain_effects = TerrainEffect.forAgentAndTerrain(self.type, current_terrain);
-        
-        // Apply terrain energy gain
-        if (terrain_effects.energy_gain > 0) {
-            self.energy = @min(self.energy + terrain_effects.energy_gain, max_energy);
-        }
-        
-        // Apply health effects from current terrain
-        self.applyHealthEffects(terrain_effects.health_effect);
-        
-        // Check if agent can move based on terrain
-        const can_move = blk: {
-            // No movement planned
-            if (dx == 0 and dy == 0) break :blk true;
-            
-            // Calculate new position with boundary checks
-            const new_pos = self.calculateNewPosition(dx, dy);
-            
-            // Get terrain at the new position and check movement probability
-            const target_terrain = map.getTerrainAt(new_pos.x, new_pos.y);
-            const target_effects = TerrainEffect.forAgentAndTerrain(self.type, target_terrain);
-            
-            break :blk @mod(self.seed, 100) < target_effects.movement_prob;
-        };
-        
-        // Apply movement if allowed
-        if (can_move) {
-            // Calculate new position
-            const new_pos = self.calculateNewPosition(dx, dy);
-            self.x = new_pos.x;
-            self.y = new_pos.y;
-            
-            // Get new terrain for energy cost calculation
-            const new_terrain = map.getTerrainAt(self.x, self.y);
-            const new_effects = TerrainEffect.forAgentAndTerrain(self.type, new_terrain);
-            
-            // Calculate and apply energy cost
-            const energy_cost = self.calculateEnergyCost(
-                dx, dy, 
-                movement_pattern.base_energy_cost, 
-                new_effects.movement_cost
-            );
-            
-            // Apply energy cost, ensuring we don't underflow
-            if (self.energy > energy_cost) {
-                self.energy -= energy_cost;
-            } else {
-                self.energy = 0;
             }
         }
     }

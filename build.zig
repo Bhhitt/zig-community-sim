@@ -74,6 +74,17 @@ pub fn build(b: *std.Build) void {
     // Now add agent_module to map's imports
     map_module.addImport("agent", agent_module);
     
+    // Add agent_update_system as a module for both main and test builds
+    const agent_update_system_module = b.addModule("agent_update_system", .{
+        .root_source_file = b.path("src/agents/agent_update_system.zig"),
+        .imports = &.{
+            .{ .name = "agent", .module = agent_module },
+            .{ .name = "map", .module = map_module },
+            .{ .name = "terrain_effects", .module = terrain_effects_module },
+            .{ .name = "agent_type", .module = agent_type_module },
+        },
+    });
+    
     // Config module
     const config_module = b.addModule("config", .{
         .root_source_file = b.path("src/core/config.zig"),
@@ -97,6 +108,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "map", .module = map_module },
             .{ .name = "interactions", .module = interactions_module },
             .{ .name = "terrain", .module = terrain_module },
+            .{ .name = "agent_update_system", .module = agent_update_system_module },
         },
     });
     
@@ -212,6 +224,7 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("agent", agent_module);
     exe.root_module.addImport("map", map_module);
     exe.root_module.addImport("build_options", build_options_module);
+    exe.root_module.addImport("agent_update_system", agent_update_system_module);
     
     // Install the executable
     b.installArtifact(exe);
@@ -260,6 +273,7 @@ pub fn build(b: *std.Build) void {
     tests.root_module.addImport("agent", agent_module);
     tests.root_module.addImport("map", map_module);
     tests.root_module.addImport("test_utils", test_utils_module);
+    tests.root_module.addImport("agent_update_system", agent_update_system_module);
     const run_tests = b.addRunArtifact(tests);
     test_step.dependOn(&run_tests.step);
 

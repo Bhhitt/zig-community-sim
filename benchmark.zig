@@ -1,9 +1,9 @@
 const std = @import("std");
 const random = std.crypto.random;
-const Agent = @import("src/agents/agent.zig").Agent;
-const AgentType = @import("src/agents/agent.zig").AgentType;
-const Map = @import("src/world/map.zig").Map;
-const Terrain = @import("src/world/map.zig").Terrain;
+const Agent = @import("agent").Agent;
+const AgentType = @import("agent_type").AgentType;
+const Map = @import("map").Map;
+const Terrain = @import("terrain").Terrain;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

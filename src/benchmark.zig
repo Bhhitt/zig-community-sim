@@ -1,14 +1,25 @@
+// Benchmark module for running performance and stress tests on the simulation.
 const std = @import("std");
 const Simulation = @import("simulation").Simulation;
 const AgentType = @import("agent_type").AgentType;
 
+/// Configuration for benchmarking the simulation.
 pub const BenchmarkConfig = struct {
+    /// The number of agents to simulate.
     agent_count: usize = 1000,
+    /// The number of iterations to run the simulation for.
     iterations: usize = 100,
+    /// The width of the map.
     map_width: usize = 200,
+    /// The height of the map.
     map_height: usize = 200,
 };
 
+/// Runs a benchmark with the given allocator and configuration.
+/// 
+/// This function creates a simulation with the specified configuration, adds agents to the map,
+/// and then runs the simulation for the specified number of iterations. It prints out the results
+/// of the benchmark, including the total time taken and the average iteration time.
 pub fn runBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig) !void {
     // Create a large simulation
     std.debug.print("Starting benchmark with {d} agents for {d} iterations...\n", 

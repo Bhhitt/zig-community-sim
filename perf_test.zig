@@ -1,3 +1,13 @@
+// Low-level agent update micro-benchmark
+// ------------------------------------------------------
+// This file is intended for isolated profiling of agent
+// movement and update logic, separate from the main
+// simulation modules. It does NOT use the core simulation
+// or agent data structures, and is meant for micro-benchmarking
+// core movement code only. For full-system benchmarks, use
+// src/benchmark.zig and `zig build benchmark`.
+// ------------------------------------------------------
+
 const std = @import("std");
 const agent_code = @embedFile("src/agents/agent.zig");
 const map_code = @embedFile("src/world/map.zig");

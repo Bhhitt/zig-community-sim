@@ -7,6 +7,7 @@ const MovementPattern = agent_mod.MovementPattern;
 const map_mod = @import("map");
 const Map = map_mod.Map;
 const Terrain = map_mod.Terrain;
+const agent_update_system = @import("agent_update_system");
 
 // Test utility to create a controlled map environment
 fn createTestMap(allocator: std.mem.Allocator) !Map {
@@ -44,7 +45,7 @@ test "agent basic movement" {
     // Update the agent several times
     var moved = false;
     for (0..10) |_| {
-        explorer.update(&map);
+        agent_update_system.updateAgent(&explorer, &map);
         
         // Check if agent moved at least once
         if (explorer.x != original_x or explorer.y != original_y) {
@@ -72,7 +73,7 @@ test "settler tendency to stay" {
     // We can't really test probabilistic behavior reliably
     // So we'll just ensure the agent updates without crashing
     for (0..20) |_| {
-        settler.update(&map);
+        agent_update_system.updateAgent(&settler, &map);
         // Just check health and energy remain valid
         try testing.expect(settler.health > 0 and settler.health <= 100);
         try testing.expect(settler.energy <= 100);
@@ -96,8 +97,8 @@ test "terrain effects on movement cost" {
         const miner_energy_before = miner.energy;
         const farmer_energy_before = farmer.energy;
         
-        miner.update(&map);
-        farmer.update(&map);
+        agent_update_system.updateAgent(&miner, &map);
+        agent_update_system.updateAgent(&farmer, &map);
         
         // Both should lose energy when moving, but miner should get energy boost on mountains
         if (miner.energy > miner_energy_before) {
@@ -121,7 +122,7 @@ test "agent movement boundaries" {
     
     // Force many updates to test boundary handling
     for (0..20) |_| {
-        agent.update(&map);
+        agent_update_system.updateAgent(&agent, &map);
         
         // Agent should never go out of bounds
         try testing.expectEqual(true, agent.x < map.width);

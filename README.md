@@ -1,192 +1,76 @@
-# Agent Simulation in Zig
+# Zig Community Agent Simulation
 
-This project implements a simulation of agents with different behaviors and movement patterns in a 2D world. The system features multiple agent types, terrain interactions, and high-performance movement algorithms.
+A modular, high-performance agent-based simulation written in Zig. Agents with unique behaviors and movement patterns interact in a procedurally generated 2D world, influenced by terrain and agent type.
 
-## Running the Simulation
+## Features
+- **Multiple agent types:** Settler, Explorer, Builder, Farmer, Miner, Scout
+- **Procedural terrain:** Forests, mountains, water, grass, and more
+- **Agent interactions:** Greeting, Trading, Collaboration, Teaching, Resource
+- **Terrain effects:** Terrain influences agent movement, energy, and health
+- **High-performance movement:** Multi-threaded agent updates for large-scale simulations
+- **Graphical interface:** Real-time SDL3 visualization with interactive controls
+- **Text interface:** Fast, headless mode for benchmarks and automated testing
+- **Benchmarking:** Built-in stress tests and performance metrics
+- **Extensible architecture:** Easy to add new agent types, terrain, or behaviors
 
-The simulation features procedurally generated terrain and agents that move around and interact with each other based on their type and the terrain they're on.
+## Getting Started
 
-Each run creates a unique world with:
-- Procedurally generated terrain (forests, mountains, water, grass)
-- Agents that move according to their type-specific patterns
-- Interactions between agents when they meet
-- Influence of terrain on agent movement and stats
+### Requirements
+- Zig 0.12.0+ (tested with 0.14.0)
+- (Optional) SDL3 for GUI: `brew install sdl3`
 
-### Text-based Interface (Default and Recommended)
-```bash
-zig build run
-# or explicitly specify text mode
+### Building and Running
+
+#### Text Mode
+```sh
 zig build run -- --text
 ```
 
-### Set Maximum Steps
-You can specify a maximum number of steps to run:
-```bash
-zig build run -- --steps=200
+#### Graphical/SDL3
+```sh
+zig build -Dsdl=true
+zig build run -- --gui
+```
+Or use the helper script:
+```sh
+./run_gui.sh
 ```
 
-### Customize Map Size
-You can set the dimensions of the map:
-```bash
-zig build run -- --width=80 --height=40
-```
+### Command-line Options
+- `--steps=N`: Set maximum simulation steps
+- `--width=W --height=H`: Set map dimensions
+- `--text` or `--gui`: Choose interface mode
 
-### Run with Multiple Options
-```bash
-zig build run -- --text --steps=200 --width=80 --height=40
-```
-
-### Run Benchmark
-```bash
+### Benchmarking
+```sh
 zig build benchmark
-```
-or with custom parameters:
-```bash
 zig build run -- benchmark 2000 200
 ```
-(2000 agents for 200 iterations)
 
-### Using the Helper Script
-A helper script is included to simplify running the simulation:
-```bash
+### Helper Script
+```sh
 ./run_sim.sh --steps=500 --width=80 --height=40
 ```
 
-Run `./run_sim.sh --help` for all available options.
-
-### Graphical Interface with SDL3
-The project includes a fully functional SDL3 graphical interface. To use it:
-
-1. Install SDL3: `brew install sdl3`
-2. Run the helper script: `./run_gui.sh`
-
-Or manually:
-```bash
-zig build -Dsdl=true && zig build run -- --gui
-```
-
-The graphical interface provides:
-- Real-time visualization of agents and terrain
-- Interactive controls via keyboard and mouse
-- Click to place new agents directly on the map
-- Select agent types with number keys (1-6)
-- Stress test the simulation with thousands of agents (S key)
-- Add benchmark agents (B key)
-- Pause/resume with spacebar
-
-## Simulation Controls
-
-In the text-based mode, the following automated controls are available:
-- Auto-pause toggle every 100 frames
-- Add 10 benchmark agents every 300 frames
-- Add 100 stress test agents every 1000 frames
-- Auto-quit after 3000 frames
+## Controls (SDL3 GUI)
+- **Space:** Pause/resume
+- **Right Arrow:** Step when paused
+- **A:** Enter agent spawn mode (then click to place)
+- **1-6:** Select agent type
+- **B:** Add 10 random agents
+- **S:** Add 100 random agents
+- **ESC:** Quit
 
 ## Project Structure
+- `src/agents/` — Agent logic, types, movement, interactions
+- `src/core/` — Simulation, configuration, core logic
+- `src/world/` — Map and terrain
+- `src/ui/` — Rendering, SDL3, input handling
+- `benchmark.zig` — Benchmark runner
+- `build.zig` — Zig build definition and module registration
 
-```
-/
-├── src/                  # Source code
-│   ├── agents/           # Agent-related code
-│   │   ├── agent.zig     # Agent implementation
-│   │   ├── agent_type.zig # Agent type definitions
-│   │   ├── interaction_type.zig # Interaction system
-│   │   ├── movement.zig  # Movement patterns and calculations
-│   │   └── terrain_effects.zig # Terrain interaction effects
-│   ├── core/             # Core simulation components
-│   │   ├── app.zig       # Application controller
-│   │   ├── config.zig    # Configuration settings
-│   │   ├── interactions.zig # Interaction system
-│   │   └── simulation.zig # Simulation engine
-│   ├── ui/               # User interface components
-│   │   ├── drawing.zig   # Drawing utilities
-│   │   ├── input_handler.zig # Input management
-│   │   ├── render_config.zig # Rendering configuration
-│   │   └── renderer.zig  # Rendering system
-│   ├── world/            # World-related code
-│   │   ├── map.zig       # Map implementation
-│   │   └── terrain.zig   # Terrain types and generation
-│   ├── main.zig          # Entry point
-│   └── build_options.zig # Build configuration options
-├── build.zig             # Build system configuration
-├── perf_test.zig         # Performance testing tool
-└── tests/                # Test files
-    ├── main.zig          # Main test runner
-    ├── agent_tests.zig   # Tests for basic agent functionality
-    ├── interaction_tests.zig # Tests for agent interactions
-    ├── movement_tests.zig    # Tests for agent movement 
-    ├── integration_tests.zig # Integration tests for the system
-    └── utils/            # Test utilities
-        └── test_utils.zig # Helper functions for tests
-```
+## Contributing
+Contributions are welcome! Please open issues or pull requests for bugfixes, improvements, or new features.
 
-## Agent Types
-
-The simulation supports different types of agents, each with its own behavior:
-
-- **Settler**: Low mobility, prefers staying in one place
-- **Explorer**: High mobility, explores the world quickly
-- **Builder**: Move in patterns, focusing on construction
-- **Farmer**: Stays near home location, prefers grass terrain
-- **Miner**: Seeks mountain terrain for resources
-- **Scout**: Fast-moving, can move diagonally, uses spiral patterns
-
-## Terrain Types
-
-The world consists of procedurally generated terrain that affects agent movement and stats:
-
-- **Empty** (Space): Default neutral terrain
-- **Grass** (`,`): Beneficial for Settlers and Farmers, provides energy and health benefits 
-- **Forest** (`F`): Moderate movement costs for most agents, good for Scouts
-- **Mountain** (`M`): Beneficial for Miners who gain energy here, difficult for most others
-- **Water** (`W`): Difficult terrain with high movement costs and health penalties
-
-The terrain is generated using a procedural algorithm that creates realistic clusters of terrain types, with each simulation run creating a unique world layout.
-
-## Running Tests
-
-To run all tests, use the following command:
-
-```bash
-zig build test
-```
-
-This command uses the build system to properly set up the module dependencies between files.
-
-The build system also provides specific test targets for running individual test suites:
-
-```bash
-# Run agent-specific tests
-zig build test-agents
-
-# Run interaction tests
-zig build test-interactions  
-
-# Run movement tests
-zig build test-movement
-
-# Run integration tests
-zig build test-integration
-```
-
-This approach ensures all module dependencies are correctly resolved for each test file.
-
-## Performance Testing
-
-The project includes a dedicated performance testing tool that measures agent update performance:
-
-```bash
-# Build and run the performance test with default settings (500 agents, 1000 iterations)
-zig build-exe perf_test.zig -O ReleaseFast && ./perf_test
-
-# Run with custom agent count and iterations
-./perf_test 2000 5000  # 2000 agents, 5000 iterations
-```
-
-The performance test provides:
-- Throughput metrics (updates per millisecond/second)
-- Movement distribution statistics
-- Agent behavior verification
-- O(1) time complexity for all agent operations
-
-Performance benchmarks show the system can process over 169 million agent updates per second on modern hardware, making it suitable for large-scale simulations.
+## License
+MIT License

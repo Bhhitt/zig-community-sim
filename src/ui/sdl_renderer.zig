@@ -296,6 +296,8 @@ pub const SdlRenderer = struct {
             if (agent.x < map.width and agent.y < map.height) {
                 const color = getAgentColor(agent.type);
                 self.renderCell(agent.x, agent.y, color);
+                // Debug: Print agent being rendered
+                std.debug.print("[Renderer] Rendering agent id={} type={s} pos=({}, {})\n", .{ agent.id, @tagName(agent.type), agent.x, agent.y });
             }
         }
     }
