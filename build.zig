@@ -248,6 +248,19 @@ pub fn build(b: *std.Build) void {
     const benchmark_step = b.step("benchmark", "Run performance benchmark");
     benchmark_step.dependOn(&bench_cmd.step);
 
+    // Create a separate build command for perf_test
+    const perf_test = b.addExecutable(.{
+        .name = "perf_test",
+        .root_source_file = b.path("perf_test.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,  // Always use ReleaseFast for perf test
+    });
+    b.installArtifact(perf_test);
+    const perf_test_run = b.addRunArtifact(perf_test);
+    perf_test_run.step.dependOn(b.getInstallStep());
+    const perf_test_step = b.step("perf-test", "Run the performance test");
+    perf_test_step.dependOn(&perf_test_run.step);
+
     // Create test steps
     const test_step = b.step("test", "Run all tests");
     const agent_tests = b.step("test-agents", "Run agent tests only");
@@ -329,20 +342,4 @@ pub fn build(b: *std.Build) void {
     integration_test_exe.root_module.addImport("agent_update_system", agent_update_system_module);
     const run_integration_tests = b.addRunArtifact(integration_test_exe);
     integration_tests.dependOn(&run_integration_tests.step);
-    
-    // Create a separate build command for perf_test
-    const perf_test = b.addExecutable(.{
-        .name = "perf_test",
-        .root_source_file = b.path("perf_test.zig"),
-        .target = target,
-        .optimize = .ReleaseFast,  // Always use ReleaseFast for perf test
-    });
-    
-    b.installArtifact(perf_test);
-    
-    const perf_test_run = b.addRunArtifact(perf_test);
-    perf_test_run.step.dependOn(b.getInstallStep());
-    
-    const perf_test_step = b.step("perf-test", "Run the performance test");
-    perf_test_step.dependOn(&perf_test_run.step);
 }
