@@ -267,12 +267,12 @@ pub const SdlRenderer = struct {
                 
                 for (agents) |agent| {
                     if (agent.id == interaction.agent1_id) {
-                        agent1_pos.x = agent.x;
-                        agent1_pos.y = agent.y;
+                        agent1_pos.x = @as(usize, @intFromFloat(agent.x));
+                        agent1_pos.y = @as(usize, @intFromFloat(agent.y));
                         found1 = true;
                     } else if (agent.id == interaction.agent2_id) {
-                        agent2_pos.x = agent.x;
-                        agent2_pos.y = agent.y;
+                        agent2_pos.x = @as(usize, @intFromFloat(agent.x));
+                        agent2_pos.y = @as(usize, @intFromFloat(agent.y));
                         found2 = true;
                     }
                     
@@ -297,10 +297,26 @@ pub const SdlRenderer = struct {
         }
         
         // Then render the agents on top
-        for (agents) |agent| {
-            if (agent.x < map.width and agent.y < map.height) {
-                const color = getAgentColor(agent.type);
-                self.renderCell(agent.x, agent.y, color);
+        if (self.renderer) |renderer| {
+            for (agents) |agent| {
+                if (agent.x >= 0 and agent.x < @as(f32, @floatFromInt(map.width)) and agent.y >= 0 and agent.y < @as(f32, @floatFromInt(map.height))) {
+                    const color = getAgentColor(agent.type);
+                    // Render agent at floating-point position for smooth movement
+                    const cell_size = self.config.cell_size;
+                    const padding = self.config.window_padding;
+                    const cell_size_f: f32 = @floatFromInt(cell_size);
+                    const px = padding + @as(i32, @intFromFloat(agent.x * cell_size_f));
+                    const py = padding + @as(i32, @intFromFloat(agent.y * cell_size_f));
+                    _ = c.SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
+                    // Use SDL_FRect for SDL_RenderFillRect (SDL3 expects floating-point rects)
+                    var rect: c.SDL_FRect = .{
+                        .x = @as(f32, @floatFromInt(px)) + 1.0,
+                        .y = @as(f32, @floatFromInt(py)) + 1.0,
+                        .w = @as(f32, @floatFromInt(cell_size)) - 2.0,
+                        .h = @as(f32, @floatFromInt(cell_size)) - 2.0,
+                    };
+                    _ = c.SDL_RenderFillRect(renderer, &rect);
+                }
             }
         }
     }

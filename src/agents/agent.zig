@@ -128,26 +128,27 @@ pub const TerrainEffect = struct {
 
 // Movement result type to encapsulate direction calculation
 const MovementResult = struct {
-    dx: i8 = 0,
-    dy: i8 = 0,
+    dx: f32 = 0,
+    dy: f32 = 0,
     
     fn applyDoubleStep(self: *MovementResult, double_step_chance: u8, random_value: u64) void {
         if (double_step_chance > 0 and @mod(random_value, 100) < double_step_chance) {
-            self.dx *= 2;
-            self.dy *= 2;
+            self.dx *= 2.0;
+            self.dy *= 2.0;
         }
     }
 };
 
 pub const Agent = struct {
     id: usize,
-    x: usize,
-    y: usize,
+    x: f32,
+    y: f32,
     type: AgentType,
     health: u8,
     energy: u8,
     hunger: u8, // 0 = not hungry, higher = hungrier
     seed: u64, // Unique seed for agent's random movements
+    speed: f32 = 0.15, // cells per tick (default value, tweak as needed)
     
     // Agent configuration
     const max_health = 100;
@@ -157,13 +158,14 @@ pub const Agent = struct {
     pub fn init(id: usize, x: usize, y: usize, agent_type: AgentType, health: u8, energy: u8) Agent {
         return .{
             .id = id,
-            .x = x,
-            .y = y,
+            .x = @floatFromInt(x),
+            .y = @floatFromInt(y),
             .type = agent_type,
             .health = health,
             .energy = energy,
             .hunger = 0,
             .seed = std.crypto.random.int(u64), // Initialize with random seed
+            .speed = 0.15,
         };
     }
     
@@ -191,20 +193,21 @@ pub const Agent = struct {
         // Pattern-based movement (used by Builder)
         if (pattern.pattern_based) {
             const pattern_val = @mod(random_value, 8);
-            
+            const x_int: i32 = @intFromFloat(self.x);
+            const y_int: i32 = @intFromFloat(self.y);
             if (pattern_val < 2) {
                 // Move in small square pattern
-                if (@mod(self.x + self.y, 2) == 0) {
-                    result.dx = 1;
+                if (@mod(x_int + y_int, 2) == 0) {
+                    result.dx = 1.0;
                 } else {
-                    result.dy = 1;
+                    result.dy = 1.0;
                 }
             } else if (pattern_val < 4) {
                 // Move in another pattern
-                if (@mod(self.x + self.y, 2) == 0) {
-                    result.dx = -1;
+                if (@mod(x_int + y_int, 2) == 0) {
+                    result.dx = -1.0;
                 } else {
-                    result.dy = -1;
+                    result.dy = -1.0;
                 }
             }
             return result;
@@ -217,14 +220,14 @@ pub const Agent = struct {
             const direction = @mod(random_value + time_component, 8);
             
             switch (direction) {
-                0 => result.dx = 1,  // East
-                1 => { result.dx = 1; result.dy = 1; },  // Southeast
-                2 => result.dy = 1,  // South
-                3 => { result.dx = -1; result.dy = 1; },  // Southwest
-                4 => result.dx = -1,  // West
-                5 => { result.dx = -1; result.dy = -1; },  // Northwest
-                6 => result.dy = -1,  // North
-                7 => { result.dx = 1; result.dy = -1; },  // Northeast
+                0 => result.dx = 1.0,  // East
+                1 => { result.dx = 1.0; result.dy = 1.0; },  // Southeast
+                2 => result.dy = 1.0,  // South
+                3 => { result.dx = -1.0; result.dy = 1.0; },  // Southwest
+                4 => result.dx = -1.0,  // West
+                5 => { result.dx = -1.0; result.dy = -1.0; },  // Northwest
+                6 => result.dy = -1.0,  // North
+                7 => { result.dx = 1.0; result.dy = -1.0; },  // Northeast
                 else => {}, // Unreachable
             }
             
@@ -238,16 +241,16 @@ pub const Agent = struct {
             const center_x = @mod(self.id * 7, 10);
             const center_y = @mod(self.id * 13, 10);
             
-            if (self.x > center_x and @mod(random_value, 2) == 0) {
-                result.dx = -1;
-            } else if (self.x < center_x and @mod(random_value, 2) == 0) {
-                result.dx = 1;
+            if (self.x > @as(f32, @floatFromInt(center_x)) and @mod(random_value, 2) == 0) {
+                result.dx = -1.0;
+            } else if (self.x < @as(f32, @floatFromInt(center_x)) and @mod(random_value, 2) == 0) {
+                result.dx = 1.0;
             }
             
-            if (self.y > center_y and @mod(random_value, 2) == 0) {
-                result.dy = -1;
-            } else if (self.y < center_y and @mod(random_value, 2) == 0) {
-                result.dy = 1;
+            if (self.y > @as(f32, @floatFromInt(center_y)) and @mod(random_value, 2) == 0) {
+                result.dy = -1.0;
+            } else if (self.y < @as(f32, @floatFromInt(center_y)) and @mod(random_value, 2) == 0) {
+                result.dy = 1.0;
             }
             
             return result;
@@ -260,17 +263,17 @@ pub const Agent = struct {
         // Apply directional bias
         direction_sum += pattern.directional_bias.north;
         if (direction_val < direction_sum) {
-            result.dy = -1;
+            result.dy = -1.0;
         } else {
             direction_sum += pattern.directional_bias.south;
             if (direction_val < direction_sum) {
-                result.dy = 1;
+                result.dy = 1.0;
             } else {
                 direction_sum += pattern.directional_bias.east;
                 if (direction_val < direction_sum) {
-                    result.dx = 1;
+                    result.dx = 1.0;
                 } else {
-                    result.dx = -1; // Default to west
+                    result.dx = -1.0; // Default to west
                 }
             }
         }
@@ -278,9 +281,9 @@ pub const Agent = struct {
         // Convert to diagonal if needed
         if (pattern.can_move_diagonally and @mod(random_value, 100) < pattern.diagonal_chance) {
             if (result.dx == 0) {
-                result.dx = if (@mod(random_value, 2) == 0) -1 else 1;
+                result.dx = if (@mod(random_value, 2) == 0) -1.0 else 1.0;
             } else if (result.dy == 0) {
-                result.dy = if (@mod(random_value, 2) == 0) -1 else 1;
+                result.dy = if (@mod(random_value, 2) == 0) -1.0 else 1.0;
             }
         }
         
@@ -291,45 +294,45 @@ pub const Agent = struct {
     }
     
     // Calculate new position with boundary checks
-    pub fn calculateNewPosition(self: Agent, dx: i8, dy: i8) struct { x: usize, y: usize } {
+    pub fn calculateNewPosition(self: Agent, dx: f32, dy: f32) struct { x: f32, y: f32 } {
         var new_x = self.x;
         var new_y = self.y;
         
         // Handle x-direction movement with boundary checks
         if (dx < 0) {
-            const abs_dx = @abs(dx);
+            const abs_dx: f32 = @abs(dx);
             if (new_x >= abs_dx) {
-                new_x -= @as(u8, @intCast(abs_dx));
+                new_x -= abs_dx;
             } else {
                 new_x = 0;
             }
         } else if (dx > 0) {
-            new_x += @as(u8, @intCast(dx));
+            new_x += dx;
         }
         
         // Handle y-direction movement with boundary checks
         if (dy < 0) {
-            const abs_dy = @abs(dy);
+            const abs_dy: f32 = @abs(dy);
             if (new_y >= abs_dy) {
-                new_y -= @as(u8, @intCast(abs_dy));
+                new_y -= abs_dy;
             } else {
                 new_y = 0;
             }
         } else if (dy > 0) {
-            new_y += @as(u8, @intCast(dy));
+            new_y += dy;
         }
         
         return .{ .x = new_x, .y = new_y };
     }
     
     // Calculate energy cost for movement
-    pub fn calculateEnergyCost(_: Agent, dx: i8, dy: i8, base_cost: u8, terrain_cost: u8) u8 {
+    pub fn calculateEnergyCost(_: Agent, dx: f32, dy: f32, base_cost: u8, terrain_cost: u8) u8 {
         // If not moving, no energy cost
         if (dx == 0 and dy == 0) return 0;
         
         // Calculate distance factor
-        const distance_factor = @max(@abs(dx), @abs(dy));
-        var result = base_cost * @as(u8, @intCast(distance_factor));
+        const distance_factor: f32 = @max(@abs(dx), @abs(dy));
+        var result = base_cost * @as(u8, @intFromFloat(distance_factor));
         
         // Add terrain movement cost
         result += terrain_cost;

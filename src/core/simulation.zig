@@ -104,11 +104,11 @@ pub const Simulation = struct {
                 agent_update_system.updateAgent(&agents[i], &simulation.map, config);
 
                 // Map bounds are now checked within the agent update, but just to be safe
-                if (agents[i].x >= simulation.map.width) {
-                    agents[i].x = simulation.map.width - 1;
+                if (agents[i].x >= @as(f32, @floatFromInt(simulation.map.width))) {
+                    agents[i].x = @as(f32, @floatFromInt(simulation.map.width - 1));
                 }
-                if (agents[i].y >= simulation.map.height) {
-                    agents[i].y = simulation.map.height - 1;
+                if (agents[i].y >= @as(f32, @floatFromInt(simulation.map.height))) {
+                    agents[i].y = @as(f32, @floatFromInt(simulation.map.height - 1));
                 }
             }
         }
@@ -128,11 +128,11 @@ pub const Simulation = struct {
                     agent_update_system.updateAgent(agent, &self.map, config);
 
                     // Map bounds are now checked within the agent update, but just to be safe
-                    if (agent.x >= self.map.width) {
-                        agent.x = self.map.width - 1;
+                    if (agent.x >= @as(f32, @floatFromInt(self.map.width))) {
+                        agent.x = @as(f32, @floatFromInt(self.map.width - 1));
                     }
-                    if (agent.y >= self.map.height) {
-                        agent.y = self.map.height - 1;
+                    if (agent.y >= @as(f32, @floatFromInt(self.map.height))) {
+                        agent.y = @as(f32, @floatFromInt(self.map.height - 1));
                     }
                 }
             }

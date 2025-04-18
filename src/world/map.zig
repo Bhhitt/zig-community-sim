@@ -123,8 +123,8 @@ pub const Map = struct {
         }
         // Place agents on the grid (agents overwrite food/terrain symbol)
         for (agents) |agent| {
-            if (agent.x < self.width and agent.y < self.height) {
-                display_grid[agent.y * self.width + agent.x] = agent.getSymbol();
+            if (agent.x < @as(f32, @floatFromInt(self.width)) and agent.y < @as(f32, @floatFromInt(self.height))) {
+                display_grid[@as(usize, @intFromFloat(agent.y)) * self.width + @as(usize, @intFromFloat(agent.x))] = agent.getSymbol();
             }
         }
         // Print the grid
@@ -172,8 +172,8 @@ pub const Map = struct {
         
         // Place agents on grid
         for (agents) |agent| {
-            if (agent.x < self.width and agent.y < self.height) {
-                display_grid[agent.y * self.width + agent.x] = agent.getSymbol();
+            if (agent.x < @as(f32, @floatFromInt(self.width)) and agent.y < @as(f32, @floatFromInt(self.height))) {
+                display_grid[@as(usize, @intFromFloat(agent.y)) * self.width + @as(usize, @intFromFloat(agent.x))] = agent.getSymbol();
             }
         }
         
@@ -193,8 +193,8 @@ pub const Map = struct {
                 .{
                     agent.getSymbol(), 
                     @tagName(agent.type), 
-                    agent.x, 
-                    agent.y, 
+                    @as(usize, @intFromFloat(agent.x)), 
+                    @as(usize, @intFromFloat(agent.y)), 
                     agent.health, 
                     agent.energy
                 }

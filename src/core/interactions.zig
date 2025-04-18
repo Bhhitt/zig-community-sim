@@ -38,7 +38,7 @@ pub const InteractionSystem = struct {
             const dy = if (other.y > current_agent.y) other.y - current_agent.y else current_agent.y - other.y;
     
             // Manhattan distance
-            if (dx + dy <= max_distance) {
+            if (dx + dy <= @as(f32, @floatFromInt(max_distance))) {
                 return other;
             }
         }

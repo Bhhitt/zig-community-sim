@@ -16,11 +16,12 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
     
     // Calculate movement direction
     const movement = agent.calculateMovement(movement_pattern);
-    const dx = movement.dx;
-    const dy = movement.dy;
+    // Scale movement by agent speed for smooth movement
+    const dx = movement.dx * agent.speed;
+    const dy = movement.dy * agent.speed;
     
     // Get current terrain the agent is on
-    const current_terrain = map.getTerrainAt(agent.x, agent.y);
+    const current_terrain = map.getTerrainAt(@intFromFloat(agent.x), @intFromFloat(agent.y));
     const terrain_effects = TerrainEffect.forAgentAndTerrain(agent.type, current_terrain);
     
     // Apply terrain energy gain
@@ -40,7 +41,7 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
         const new_pos = agent.calculateNewPosition(dx, dy);
         
         // Get terrain at the new position and check movement probability
-        const target_terrain = map.getTerrainAt(new_pos.x, new_pos.y);
+        const target_terrain = map.getTerrainAt(@intFromFloat(new_pos.x), @intFromFloat(new_pos.y));
         const target_effects = TerrainEffect.forAgentAndTerrain(agent.type, target_terrain);
         
         break :blk @mod(agent.seed, 100) < target_effects.movement_prob;
@@ -54,7 +55,7 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
         agent.y = new_pos.y;
         
         // Get new terrain for energy cost calculation
-        const new_terrain = map.getTerrainAt(agent.x, agent.y);
+        const new_terrain = map.getTerrainAt(@intFromFloat(agent.x), @intFromFloat(agent.y));
         const new_effects = TerrainEffect.forAgentAndTerrain(agent.type, new_terrain);
         
         // Calculate and apply energy cost
@@ -77,9 +78,9 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
         agent.hunger += 1;
     }
     // If agent is on food, eat and reduce hunger, remove food from map
-    if (map.getFoodAt(agent.x, agent.y) > 0) {
+    if (map.getFoodAt(@intFromFloat(agent.x), @intFromFloat(agent.y)) > 0) {
         agent.hunger = 0; // Fully satiated
-        map.setFoodAt(agent.x, agent.y, 0);
+        map.setFoodAt(@intFromFloat(agent.x), @intFromFloat(agent.y), 0);
     }
     // Health penalty for high hunger (configurable)
     if (agent.hunger >= config.hunger_threshold) {
