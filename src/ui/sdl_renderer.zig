@@ -337,33 +337,37 @@ pub const SdlRenderer = struct {
             const vh = @as(isize, self.height) - @as(isize, 2 * self.config.window_padding);
             const viewport_cells_x: usize = @intCast(@divTrunc(vw, @as(isize, self.config.cell_size)));
             const viewport_cells_y: usize = @intCast(@divTrunc(vh, @as(isize, self.config.cell_size)));
-            // SAFETY: viewport_cells_x and viewport_cells_y represent visible cells and will never exceed i32::max
-            std.debug.assert(viewport_cells_x <= @as(usize, std.math.maxInt(i32)));
-            std.debug.assert(viewport_cells_y <= @as(usize, std.math.maxInt(i32)));
+            std.debug.assert(map.width <= std.math.maxInt(i32));
+            std.debug.assert(map.height <= std.math.maxInt(i32));
+            const map_width_i32: i32 = @intCast(map.width);
+            const map_height_i32: i32 = @intCast(map.height);
             const viewport_cells_x_i32: i32 = @intCast(viewport_cells_x);
             const viewport_cells_y_i32: i32 = @intCast(viewport_cells_y);
-            const view_x_i32: i32 = @intCast(self.view_x);
-            const view_y_i32: i32 = @intCast(self.view_y);
+            const view_x_i32: i32 = @intCast(view_x);
+            const view_y_i32: i32 = @intCast(view_y);
             for (agents) |agent| {
-                // Only render if agent is within the visible viewport
+                // Only render if agent is within the visible viewport AND inside the map bounds
                 const ax: i32 = @intFromFloat(agent.x);
                 const ay: i32 = @intFromFloat(agent.y);
-                if (ax >= view_x_i32 and ax < view_x_i32 + viewport_cells_x_i32 and ay >= view_y_i32 and ay < view_y_i32 + viewport_cells_y_i32) {
+                if (ax >= view_x_i32 and ay >= view_y_i32 and ax < view_x_i32 + viewport_cells_x_i32 and ay < view_y_i32 + viewport_cells_y_i32 and ax >= 0 and ay >= 0 and ax < map_width_i32 and ay < map_height_i32) {
                     const color = getAgentColor(agent.type);
                     const cell_size = self.config.cell_size;
                     const padding = self.config.window_padding;
                     // Map agent's map-relative position to screen position
                     const px = padding + (ax - view_x_i32) * cell_size;
                     const py = padding + (ay - view_y_i32) * cell_size;
-                    var rect: c.SDL_FRect = .{
-                        .x = @as(f32, @floatFromInt(px)) + 1.0,
-                        .y = @as(f32, @floatFromInt(py)) + 1.0,
-                        .w = @as(f32, @floatFromInt(cell_size)) - 2.0,
-                        .h = @as(f32, @floatFromInt(cell_size)) - 2.0,
-                    };
-                    _ = c.SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
-                    _ = c.SDL_RenderFillRect(renderer, &rect);
-                    std.debug.print("[AGENT] id={} map=({}, {}) view=({}, {}) px={}, py={}\n", .{agent.id, ax, ay, view_x_i32, view_y_i32, px, py});
+                    // Only draw if inside drawable area (not in margin)
+                    if (px >= padding and py >= padding and px < self.width - padding and py < self.height - padding) {
+                        var rect: c.SDL_FRect = .{
+                            .x = @as(f32, @floatFromInt(px)) + 1.0,
+                            .y = @as(f32, @floatFromInt(py)) + 1.0,
+                            .w = @as(f32, @floatFromInt(cell_size)) - 2.0,
+                            .h = @as(f32, @floatFromInt(cell_size)) - 2.0,
+                        };
+                        _ = c.SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
+                        _ = c.SDL_RenderFillRect(renderer, &rect);
+                        std.debug.print("[AGENT] id={} map=({}, {}) view=({}, {}) px={}, py={}\n", .{agent.id, ax, ay, view_x_i32, view_y_i32, px, py});
+                    }
                 }
             }
         }
