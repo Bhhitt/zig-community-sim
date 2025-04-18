@@ -80,9 +80,12 @@ zig build run -- benchmark 2000 200
   - Movement logic ensures energy is always consumed on any movement attempt, even when blocked or moving fractionally.
 - **Testing:**
   - All agent, interaction, and integration tests pass with the new movement and energy logic.
+  - Integration tests now robustly check for agent movement using a distance threshold, and allow rare agent deaths for stochastic realism.
   - Debug output now displays true floating-point positions for agents.
 - **Builder Tuning:**
   - Builder's base energy cost reduced and tendency to stay lowered for better map coverage and survivability.
+- **AI-Generated:**
+  - This project, including code, tests, and documentation, was generated and maintained with the assistance of AI (Cascade).
 
 See `LOG.md` for a detailed change log.
 
