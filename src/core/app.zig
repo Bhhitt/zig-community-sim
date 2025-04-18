@@ -24,6 +24,8 @@ pub const App = struct {
     current_fps: f32,
     
     pub fn init(allocator: std.mem.Allocator, config: AppConfig) !App {
+        std.debug.print("[CONFIG] map_width: {} map_height: {} use_sdl: {}\n", .{config.map_width, config.map_height, config.use_sdl});
+        
         // Initialize simulation
         var simulation = try Simulation.init(allocator, config.map_width, config.map_height, config);
         errdefer simulation.deinit();
@@ -133,7 +135,8 @@ pub const App = struct {
     fn processFrameWithSdl(self: *App, config: AppConfig) !void {
         if (self.sdl_renderer) |*renderer| {
             // Process inputs
-            const app_input = renderer.processEvents(self.spawn_mode, self.paused);
+            const app_input = renderer.processEvents(self.spawn_mode, self.paused, self.config.map_width, self.config.map_height);
+            std.debug.print("[APP] view_x: {} view_y: {}\n", .{renderer.view_x, renderer.view_y});
             self.quit = app_input.quit;
             self.paused = app_input.paused;
             self.step_once = app_input.step;
@@ -230,21 +233,14 @@ pub const App = struct {
     fn addRandomAgents(self: *App, count: usize) !void {
         std.debug.print("Adding {d} random agents...\n", .{count});
         
-        const base_seed: u64 = @intCast(std.time.timestamp());
         const width = self.config.map_width;
         const height = self.config.map_height;
         
         var i: usize = 0;
         while (i < count) : (i += 1) {
-            const seed = base_seed +% i;
-            
-            // Generate position
-            const hash = seed *% 16777619;
-            const x = @mod(hash, width);
-            const y = @mod(hash >> 32, height);
-            
-            // Generate agent type
-            const type_idx = @mod(seed, 6);
+            const x = std.crypto.random.int(usize) % width;
+            const y = std.crypto.random.int(usize) % height;
+            const type_idx = std.crypto.random.int(u8) % 6;
             const agent_type = switch (type_idx) {
                 0 => AgentType.Settler,
                 1 => AgentType.Explorer,
@@ -254,11 +250,8 @@ pub const App = struct {
                 5 => AgentType.Scout,
                 else => AgentType.Settler,
             };
-            
-            // Generate health and energy
-            const health = @as(u8, 75) + @as(u8, @intCast(@mod(seed, 51))); // 75-125 range
-            const energy = @as(u8, 75) + @as(u8, @intCast(@mod(seed >> 32, 51))); // 75-125 range
-            
+            const health = 75 + (std.crypto.random.int(u8) % 51); // 75-125
+            const energy = 75 + (std.crypto.random.int(u8) % 51); // 75-125
             try self.simulation.spawnAgent(.{
                 .x = x,
                 .y = y,

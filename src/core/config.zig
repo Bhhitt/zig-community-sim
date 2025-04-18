@@ -2,9 +2,9 @@ const std = @import("std");
 
 // Application configuration
 pub const AppConfig = struct {
-    use_sdl: bool = false, // Set default to false to avoid SDL dependency
-    map_width: usize = 60,
-    map_height: usize = 30,
+    use_sdl: bool = true, // Set default to true to enable SDL
+    map_width: usize = 1200,
+    map_height: usize = 700,
 
     // Delay settings
     running_delay_ms: u64 = 50, // Reduced from 100 to make it run faster

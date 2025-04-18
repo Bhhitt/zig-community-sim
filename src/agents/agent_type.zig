@@ -116,6 +116,7 @@ pub const AgentType = enum {
                 .can_double_step = false,
                 .direction_change_rate = 100, // Direction change rate (percent)
                 .tendency_to_stay = 70,  // High tendency to stay in place
+                .directional_bias = .{ .north = 25, .south = 25, .east = 25, .west = 25 },
                 .base_energy_cost = 2,
             },
             .Explorer => .{

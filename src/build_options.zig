@@ -9,5 +9,5 @@ pub const USE_SDL = true;
 pub const enable_sdl = USE_SDL; // For compatibility with existing code
 
 // Default map dimensions
-pub const DEFAULT_MAP_WIDTH = 60;
-pub const DEFAULT_MAP_HEIGHT = 30;
+pub const DEFAULT_MAP_WIDTH = 1200;
+pub const DEFAULT_MAP_HEIGHT = 700;
