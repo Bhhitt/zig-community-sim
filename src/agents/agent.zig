@@ -148,7 +148,7 @@ pub const Agent = struct {
     energy: u8,
     hunger: u8, // 0 = not hungry, higher = hungrier
     seed: u64, // Unique seed for agent's random movements
-    speed: f32 = 0.15, // cells per tick (default value, tweak as needed)
+    speed: f32 = 0.7, // cells per tick (increased for more visible movement)
     
     // Agent configuration
     const max_health = 100;
@@ -165,7 +165,7 @@ pub const Agent = struct {
             .energy = energy,
             .hunger = 0,
             .seed = std.crypto.random.int(u64), // Initialize with random seed
-            .speed = 0.15,
+            .speed = 0.7,
         };
     }
     
@@ -333,10 +333,9 @@ pub const Agent = struct {
         // Calculate distance factor
         const distance_factor: f32 = @max(@abs(dx), @abs(dy));
         var result = base_cost * @as(u8, @intFromFloat(distance_factor));
-        
-        // Add terrain movement cost
         result += terrain_cost;
-        
+        // Always consume at least 1 energy for any movement attempt
+        result = @max(result, 1);
         // Cap at 20 to prevent excessive energy drain
         return @min(result, 20);
     }

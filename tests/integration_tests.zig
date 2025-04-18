@@ -9,6 +9,7 @@ const Terrain = map_mod.Terrain;
 const test_utils = @import("test_utils");
 const TestMap = test_utils.TestMap;
 const agent_update_system = @import("agent_update_system");
+const config = @import("config");
 
 // Test multiple agent types coexisting on a map
 test "multiple agent types behavior" {
@@ -33,7 +34,7 @@ test "multiple agent types behavior" {
     // Simulate for a significant number of steps
     for (0..50) |_| {
         for (agents.items) |*agent| {
-            agent_update_system.updateAgent(agent, &test_map.map);
+            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{});
         }
     }
     
@@ -46,6 +47,11 @@ test "multiple agent types behavior" {
         }
     }
     
+    for (agents.items) |agent| {
+        std.debug.print("Agent type {s}: pos=({d},{d}) energy={d} health={d}\n", .{
+            @tagName(agent.type), @as(f64, agent.x), @as(f64, agent.y), agent.energy, agent.health
+        });
+    }
     try testing.expect(all_moved);
     
     // Check health and energy are valid
@@ -71,8 +77,8 @@ test "agent terrain preferences" {
     
     // Simply ensure the agents can update on the terrain without errors
     for (0..50) |_| {
-        agent_update_system.updateAgent(&miner, &test_map.map);
-        agent_update_system.updateAgent(&farmer, &test_map.map);
+        agent_update_system.updateAgent(&miner, &test_map.map, config.AppConfig{});
+        agent_update_system.updateAgent(&farmer, &test_map.map, config.AppConfig{});
         
         // Verify health and energy remain valid
         try testing.expect(miner.health > 0 and miner.health <= 100);
@@ -123,7 +129,7 @@ test "agent long-term survival" {
     // Run a lengthy simulation
     for (0..200) |_| {
         for (agents.items, 0..) |*agent, i| {
-            agent_update_system.updateAgent(agent, &test_map.map);
+            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{});
             try health_history[i].append(agent.health);
         }
     }

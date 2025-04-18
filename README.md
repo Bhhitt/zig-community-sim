@@ -72,6 +72,20 @@ zig build run -- benchmark 2000 200
     - `hunger_health_penalty`: Health lost per step above threshold
 - All parameters are set in `src/core/config.zig`.
 
+## Recent Updates (April 2025)
+
+- **Agent Movement:**
+  - Agents now use floating-point positions for smooth movement.
+  - Default movement speed increased to `0.7` cells per tick for more visible, dynamic movement.
+  - Movement logic ensures energy is always consumed on any movement attempt, even when blocked or moving fractionally.
+- **Testing:**
+  - All agent, interaction, and integration tests pass with the new movement and energy logic.
+  - Debug output now displays true floating-point positions for agents.
+- **Builder Tuning:**
+  - Builder's base energy cost reduced and tendency to stay lowered for better map coverage and survivability.
+
+See `LOG.md` for a detailed change log.
+
 ## Project Structure
 - `src/agents/` — Agent logic, types, movement, interactions
 - `src/core/` — Simulation, configuration, core logic

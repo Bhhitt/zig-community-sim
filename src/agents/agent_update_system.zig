@@ -47,25 +47,26 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
         break :blk @mod(agent.seed, 100) < target_effects.movement_prob;
     };
     
-    // Apply movement if allowed
+    // Always consume energy on movement attempt, even if move is blocked
+    var attempted_move = false;
     if (can_move) {
         // Calculate new position
         const new_pos = agent.calculateNewPosition(dx, dy);
         agent.x = new_pos.x;
         agent.y = new_pos.y;
-        
-        // Get new terrain for energy cost calculation
-        const new_terrain = map.getTerrainAt(@intFromFloat(agent.x), @intFromFloat(agent.y));
-        const new_effects = TerrainEffect.forAgentAndTerrain(agent.type, new_terrain);
-        
-        // Calculate and apply energy cost
+        attempted_move = true;
+    } else if (dx != 0 or dy != 0) {
+        attempted_move = true;
+    }
+    if (attempted_move) {
+        // Use terrain at current or attempted position for cost
+        const cost_terrain = map.getTerrainAt(@intFromFloat(agent.x), @intFromFloat(agent.y));
+        const cost_effects = TerrainEffect.forAgentAndTerrain(agent.type, cost_terrain);
         const energy_cost = agent.calculateEnergyCost(
             dx, dy, 
             movement_pattern.base_energy_cost, 
-            new_effects.movement_cost
+            cost_effects.movement_cost
         );
-        
-        // Apply energy cost, ensuring we don't underflow
         if (agent.energy > energy_cost) {
             agent.energy -= energy_cost;
         } else {

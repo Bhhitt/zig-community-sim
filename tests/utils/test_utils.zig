@@ -4,6 +4,7 @@ const testing = std.testing;
 const random = std.crypto.random;
 const agent_mod = @import("agent");
 const map_mod = @import("map");
+const config = @import("config");
 const Map = map_mod.Map;
 const Terrain = map_mod.Terrain;
 const Agent = agent_mod.Agent;
@@ -15,7 +16,7 @@ pub const TestMap = struct {
     allocator: Allocator,
     
     pub fn init(allocator: Allocator, width: usize, height: usize) !TestMap {
-        const map = try Map.init(allocator, width, height);
+        const map = try Map.init(allocator, width, height, config.AppConfig{});
         return TestMap{
             .map = map,
             .allocator = allocator,

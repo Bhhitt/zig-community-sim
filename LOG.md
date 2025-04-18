@@ -6,6 +6,14 @@
 - Food is now visualized as yellow cells in the GUI
 - Removed debug/"cringe" output from the renderer for a clean terminal
 
+## 2025-04-18
+- Agent positions are now floating-point for smooth, sub-cell movement.
+- Increased default agent speed to 0.7 cells/tick for more dynamic simulation.
+- Energy is always consumed on any movement attempt (including failed/fractional moves).
+- Builder's base energy cost reduced and tendency_to_stay lowered for better movement and survival.
+- Integration and movement tests updated for floating-point logic and now pass.
+- Debug output in tests shows true floating-point agent positions.
+
 ## 2025-04-17 — Modernization and Documentation
 - Refactored all imports to use Zig module/component references (no relative or file extension imports)
 - Added comprehensive doc comments to all major modules: agent_type, terrain_effects, interaction_type, map, render_config, benchmark, etc.

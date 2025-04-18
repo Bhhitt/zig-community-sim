@@ -131,8 +131,8 @@ pub const AgentType = enum {
                 .move_chance = 50,
                 .can_move_diagonally = false,
                 .pattern_based = true,  // Builders use pattern-based movement
-                .tendency_to_stay = 50, // Medium tendency to stay in place
-                .base_energy_cost = 3,
+                .tendency_to_stay = 20, // Lower tendency to stay in place for more movement
+                .base_energy_cost = 2,
             },
             .Farmer => .{
                 .move_chance = 40,

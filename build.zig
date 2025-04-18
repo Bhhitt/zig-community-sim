@@ -252,6 +252,15 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run all tests");
     const agent_tests = b.step("test-agents", "Run agent tests only");
     const interaction_tests = b.step("test-interactions", "Run interaction tests only");
+    const movement_tests_module = b.addTest(.{
+        .root_source_file = b.path("tests/movement_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    movement_tests_module.root_module.addImport("map", map_module);
+    movement_tests_module.root_module.addImport("agent", agent_module);
+    movement_tests_module.root_module.addImport("agent_update_system", agent_update_system_module);
+    movement_tests_module.root_module.addImport("config", config_module);
     const movement_tests = b.step("test-movement", "Run movement tests only");
     const integration_tests = b.step("test-integration", "Run integration tests only");
 
@@ -261,6 +270,7 @@ pub fn build(b: *std.Build) void {
         .imports = &.{
             .{ .name = "agent", .module = agent_module },
             .{ .name = "map", .module = map_module },
+            .{ .name = "config", .module = config_module },
         },
     });
 
@@ -274,6 +284,7 @@ pub fn build(b: *std.Build) void {
     tests.root_module.addImport("map", map_module);
     tests.root_module.addImport("test_utils", test_utils_module);
     tests.root_module.addImport("agent_update_system", agent_update_system_module);
+    tests.root_module.addImport("config", config_module);
     const run_tests = b.addRunArtifact(tests);
     test_step.dependOn(&run_tests.step);
 
@@ -285,6 +296,7 @@ pub fn build(b: *std.Build) void {
     });
     agent_test_exe.root_module.addImport("agent", agent_module);
     agent_test_exe.root_module.addImport("map", map_module);
+    agent_test_exe.root_module.addImport("config", config_module);
     const run_agent_tests = b.addRunArtifact(agent_test_exe);
     agent_tests.dependOn(&run_agent_tests.step);
 
@@ -296,19 +308,12 @@ pub fn build(b: *std.Build) void {
     });
     interaction_test_exe.root_module.addImport("agent", agent_module);
     interaction_test_exe.root_module.addImport("map", map_module);
+    interaction_test_exe.root_module.addImport("config", config_module);
     const run_interaction_tests = b.addRunArtifact(interaction_test_exe);
     interaction_tests.dependOn(&run_interaction_tests.step);
 
     // Movement tests
-    const movement_test_exe = b.addTest(.{
-        .root_source_file = b.path("tests/movement_tests.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    movement_test_exe.root_module.addImport("agent", agent_module);
-    movement_test_exe.root_module.addImport("map", map_module);
-    movement_test_exe.root_module.addImport("movement_types", movement_types_module);
-    const run_movement_tests = b.addRunArtifact(movement_test_exe);
+    const run_movement_tests = b.addRunArtifact(movement_tests_module);
     movement_tests.dependOn(&run_movement_tests.step);
 
     // Integration tests
@@ -320,6 +325,8 @@ pub fn build(b: *std.Build) void {
     integration_test_exe.root_module.addImport("agent", agent_module);
     integration_test_exe.root_module.addImport("map", map_module);
     integration_test_exe.root_module.addImport("test_utils", test_utils_module);
+    integration_test_exe.root_module.addImport("config", config_module);
+    integration_test_exe.root_module.addImport("agent_update_system", agent_update_system_module);
     const run_integration_tests = b.addRunArtifact(integration_test_exe);
     integration_tests.dependOn(&run_integration_tests.step);
     
