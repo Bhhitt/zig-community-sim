@@ -245,7 +245,12 @@ pub const SdlRenderer = struct {
         for (0..map.height) |y| {
             for (0..map.width) |x| {
                 const terrain = map.getTerrainAt(x, y);
-                const color = getTerrainColor(terrain);
+                const food = map.getFoodAt(x, y);
+                var color = getTerrainColor(terrain);
+                if (food > 0) {
+                    // Overlay food: yellow highlight
+                    color = ColorRGB{ .r = 240, .g = 220, .b = 60 };
+                }
                 self.renderCell(x, y, color);
             }
         }

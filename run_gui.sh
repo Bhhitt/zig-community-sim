@@ -14,7 +14,6 @@ else
 fi
 
 # Create a test C file to check SDL3
-echo "Creating a test file to check SDL3 installation..."
 cat > /tmp/sdl3_test.c << 'EOF'
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -31,10 +30,7 @@ int main() {
 EOF
 
 # Try to compile and run the test
-echo "Compiling SDL3 test..."
 if cc -o /tmp/sdl3_test /tmp/sdl3_test.c -I$SDL_PATH/include -L$SDL_PATH/lib -lSDL3; then
-    echo "SDL3 test compiled successfully."
-    echo "Running SDL3 test..."
     if /tmp/sdl3_test; then
         echo "SDL3 works correctly on your system!"
     else
@@ -49,15 +45,9 @@ else
 fi
 
 # If we get here, SDL3 is working. Try to build with SDL3
-echo
-echo "Building with SDL3 support..."
-echo "COMMAND: zig build -Dsdl=true -Doptimize=Debug"
-zig build -Dsdl=true -Doptimize=Debug
+zig build -Dsdl=true -Doptimize=Debug || { echo "Build failed. Exiting."; exit 1; }
 
 # If build succeeded, run with GUI mode
-echo
-echo "Running with GUI mode..."
-echo "COMMAND: zig build run -- --gui"
 zig build run -- --gui
 
 # Check exit code
@@ -68,4 +58,5 @@ if [ $? -ne 0 ]; then
 fi
 
 # Clean up
-rm -f /tmp/sdl3_test.c /tmp/sdl3_test
+test -f /tmp/sdl3_test.c && rm /tmp/sdl3_test.c
+test -f /tmp/sdl3_test && rm /tmp/sdl3_test

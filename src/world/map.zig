@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 const Agent = @import("agent").Agent;
 const Interaction = @import("agent").Interaction;
 pub const Terrain = @import("terrain").Terrain;
+const crypto_random = std.crypto.random;
 
 /// Represents the simulation world grid, terrain, and agent placement.
 pub const Map = struct {
@@ -13,23 +14,29 @@ pub const Map = struct {
     height: usize,
     /// The 2D grid of terrain cells.
     grid: []Terrain,
+    /// The food layer: 0 = no food, >0 = food present
+    food_grid: []u8,
     /// The allocator used to manage map resources.
     allocator: Allocator,
 
-    /// Initializes a new map with the given dimensions and allocator.
+    /// Initializes a new map with the given dimensions, allocator, and configuration.
     ///
-    /// Returns a new Map instance with the specified width, height, and allocator.
-    pub fn init(allocator: Allocator, width: usize, height: usize) !Map {
+    /// Returns a new Map instance with the specified width, height, allocator, and configuration.
+    pub fn init(allocator: Allocator, width: usize, height: usize, config: anytype) !Map {
         const grid = try allocator.alloc(Terrain, width * height);
-        // Initialize with empty terrain
         for (grid) |*cell| {
             cell.* = .Empty;
         }
-
+        const food_grid = try allocator.alloc(u8, width * height);
+        for (food_grid) |*food| {
+            // Configurable chance of food per cell
+            food.* = if (crypto_random.int(u8) % 100 < config.food_spawn_chance) 1 else 0;
+        }
         return Map{
             .width = width,
             .height = height,
             .grid = grid,
+            .food_grid = food_grid,
             .allocator = allocator,
         };
     }
@@ -39,6 +46,7 @@ pub const Map = struct {
     /// Releases the map's grid memory and any other allocated resources.
     pub fn deinit(self: *Map) void {
         self.allocator.free(self.grid);
+        self.allocator.free(self.food_grid);
     }
 
     /// Returns the terrain at the given coordinates, or .Empty if out-of-bounds.
@@ -60,22 +68,50 @@ pub const Map = struct {
         }
         self.grid[y * self.width + x] = terrain;
     }
-    
+
+    /// Returns the food value at the given coordinates, or 0 if out-of-bounds.
+    pub fn getFoodAt(self: *const Map, x: usize, y: usize) u8 {
+        if (x >= self.width or y >= self.height) {
+            return 0;
+        }
+        return self.food_grid[y * self.width + x];
+    }
+
+    /// Sets the food value at the given coordinates, ignoring out-of-bounds.
+    pub fn setFoodAt(self: *Map, x: usize, y: usize, food: u8) void {
+        if (x >= self.width or y >= self.height) {
+            return;
+        }
+        self.food_grid[y * self.width + x] = food;
+    }
+
+    /// Regrow food randomly on the map (called each simulation step)
+    pub fn regrowFood(self: *Map, regrow_chance_per_cell: f32) void {
+        for (0..self.height) |y| {
+            for (0..self.width) |x| {
+                if (self.getFoodAt(x, y) == 0) {
+                    if (crypto_random.float(f32) < regrow_chance_per_cell) {
+                        self.setFoodAt(x, y, 1);
+                    }
+                }
+            }
+        }
+    }
+
     /// Prints the map to the terminal with agents and interactions.
     ///
     /// Displays the map grid, agents, and interactions to the console.
     pub fn print(self: *const Map, agents: []const Agent, interactions: []const Interaction) !void {
         const stdout = std.io.getStdOut().writer();
-        
         // First, create a grid of terrain characters
         var display_grid = try self.allocator.alloc(u8, self.width * self.height);
         defer self.allocator.free(display_grid);
-        
-        // Fill with terrain symbols
+        // Fill with terrain symbols, overlay food
         for (0..self.height) |y| {
             for (0..self.width) |x| {
                 const terrain = self.getTerrainAt(x, y);
-                const symbol: u8 = switch (terrain) {
+                const food = self.getFoodAt(x, y);
+                const symbol: u8 = if (food > 0) '*' else switch (terrain) {
                     .Empty => ' ',
                     .Grass => ',',
                     .Forest => 'F',
@@ -85,7 +121,7 @@ pub const Map = struct {
                 display_grid[y * self.width + x] = symbol;
             }
         }
-        // Place agents on the grid
+        // Place agents on the grid (agents overwrite food/terrain symbol)
         for (agents) |agent| {
             if (agent.x < self.width and agent.y < self.height) {
                 display_grid[agent.y * self.width + agent.x] = agent.getSymbol();

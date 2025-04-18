@@ -1,11 +1,12 @@
 const std = @import("std");
+const AgentType = @import("agent").AgentType;
 const Agent = @import("agent").Agent;
-const AgentType = @import("agent_type").AgentType;
 const Map = @import("map").Map;
 const InteractionSystem = @import("interactions").InteractionSystem;
 const TerrainGenerator = @import("terrain").TerrainGenerator;
 const Thread = std.Thread;
 const agent_update_system = @import("agent_update_system");
+const AgentTypeFields = @import("agent_type").AgentTypeFields;
 
 const max_agents = 100000; // Increased to handle stress tests
 const thread_count = 10; // Number of threads to use for agent updates
@@ -25,9 +26,9 @@ pub const Simulation = struct {
     interaction_system: InteractionSystem,
     next_agent_id: usize,
 
-    pub fn init(allocator: std.mem.Allocator, width: usize, height: usize) !Simulation {
-        // Create map
-        const map = try Map.init(allocator, width, height);
+    pub fn init(allocator: std.mem.Allocator, width: usize, height: usize, config: anytype) !Simulation {
+        // Create map with config
+        const map = try Map.init(allocator, width, height, config);
         
         // Generate terrain features
         try TerrainGenerator.generateTerrain(map.grid, width, height, null);
@@ -64,8 +65,21 @@ pub const Simulation = struct {
     }
     
     pub fn printStats(self: Simulation) void {
-        std.debug.print("Stats: {d} agents, {d} active interactions\n", 
-            .{self.agents.items.len, self.interaction_system.getInteractions().len});
+        const agent_count = self.agents.items.len;
+        const interaction_count = self.interaction_system.getInteractions().len;
+        var type_counts = [_]usize{0} ** AgentTypeFields.len;
+        for (self.agents.items) |agent| {
+            type_counts[@intFromEnum(agent.type)] += 1;
+        }
+        std.debug.print("Agents: {d} [", .{agent_count});
+        var i: usize = 0;
+        inline for (AgentTypeFields) |field| {
+            const tag = @as(AgentType, @enumFromInt(field.value));
+            const symbol = AgentType.getSymbol(tag);
+            std.debug.print("{c}:{d}{s}", .{symbol, type_counts[i], if (i + 1 == AgentTypeFields.len) "]" else " "});
+            i += 1;
+        }
+        std.debug.print(" | Interactions: {d}", .{interaction_count});
     }
 
     pub fn saveMapToFile(self: Simulation, filename: []const u8) !void {
@@ -73,7 +87,7 @@ pub const Simulation = struct {
     }
 
     // Worker thread function to update a batch of agents
-    fn updateAgentBatch(context: *AgentUpdateContext) void {
+    fn updateAgentBatch(context: *AgentUpdateContext, config: anytype) void {
         const agents = context.agents;
         const simulation = context.simulation;
         const start = context.start_index;
@@ -87,7 +101,7 @@ pub const Simulation = struct {
 
             if (!is_interacting) {
                 // Update agent, passing the map for terrain interactions
-                agent_update_system.updateAgent(&agents[i], &simulation.map);
+                agent_update_system.updateAgent(&agents[i], &simulation.map, config);
 
                 // Map bounds are now checked within the agent update, but just to be safe
                 if (agents[i].x >= simulation.map.width) {
@@ -100,7 +114,10 @@ pub const Simulation = struct {
         }
     }
 
-    pub fn update(self: *Simulation) !void {
+    pub fn update(self: *Simulation, config: anytype) !void {
+        // Regrow food every step with config value (now f32)
+        self.map.regrowFood(config.food_regrow_chance);
+
         const agent_count = self.agents.items.len;
 
         // Skip threading if very few agents
@@ -108,7 +125,7 @@ pub const Simulation = struct {
             // Use original single-threaded approach for small agent counts
             for (self.agents.items) |*agent| {
                 if (!self.interaction_system.isAgentInteracting(agent.id)) {
-                    agent_update_system.updateAgent(agent, &self.map);
+                    agent_update_system.updateAgent(agent, &self.map, config);
 
                     // Map bounds are now checked within the agent update, but just to be safe
                     if (agent.x >= self.map.width) {
@@ -143,7 +160,7 @@ pub const Simulation = struct {
                     .mutex = &mutex,
                 };
 
-                threads[i] = try Thread.spawn(.{}, updateAgentBatch, .{&contexts[i]});
+                threads[i] = try Thread.spawn(.{}, updateAgentBatch, .{&contexts[i], config});
             }
 
             // Wait for all threads to complete

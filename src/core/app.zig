@@ -25,7 +25,7 @@ pub const App = struct {
     
     pub fn init(allocator: std.mem.Allocator, config: AppConfig) !App {
         // Initialize simulation
-        var simulation = try Simulation.init(allocator, config.map_width, config.map_height);
+        var simulation = try Simulation.init(allocator, config.map_width, config.map_height, config);
         errdefer simulation.deinit();
         
         // Initialize SDL renderer if enabled
@@ -78,7 +78,7 @@ pub const App = struct {
         // Main loop
         const max_steps: ?usize = @import("root").max_steps;
         while (!self.quit) {
-            try self.processFrame();
+            try self.processFrame(self.config);
             
             // Check if we've reached the maximum number of steps
             if (max_steps) |steps| {
@@ -96,18 +96,18 @@ pub const App = struct {
         std.debug.print("\nMap saved to file 'map_state.txt'\n", .{});
     }
     
-    fn processFrame(self: *App) !void {
-        if (self.config.use_sdl) {
-            try self.processFrameWithSdl();
+    fn processFrame(self: *App, config: AppConfig) !void {
+        if (config.use_sdl) {
+            try self.processFrameWithSdl(config);
         } else {
-            try self.processFrameHeadless();
+            try self.processFrameHeadless(config);
         }
     }
     
-    fn processFrameHeadless(self: *App) !void {
+    fn processFrameHeadless(self: *App, config: AppConfig) !void {
         // Update simulation
         if (!self.paused or self.step_once) {
-            try self.simulation.update();
+            try self.simulation.update(config);
             self.step_count += 1;
             self.frames_since_check += 1;
             self.step_once = false;
@@ -117,24 +117,20 @@ pub const App = struct {
             const elapsed = current_time - self.last_performance_check;
             
             if (elapsed >= 1000) {
-                self.current_fps = @as(f32, @floatFromInt(self.frames_since_check)) / (@as(f32, @floatFromInt(elapsed)) / 1000.0);
-                
-                // Print status
+                self.current_fps = @as(f32, @floatFromInt(self.frames_since_check)) * 1000.0 / @as(f32, @floatFromInt(elapsed));
                 std.debug.print("\rStep: {d} | ", .{self.step_count});
                 self.simulation.printStats();
-                std.debug.print(" | {d:.2} updates/sec", .{self.current_fps});
-                std.debug.print("                      \r", .{});
-                
+                std.debug.print(" | {d:.2} updates/sec\r", .{self.current_fps});
                 self.frames_since_check = 0;
                 self.last_performance_check = current_time;
             }
         }
         
         // Add delay
-        std.time.sleep(self.config.running_delay_ms * std.time.ns_per_ms);
+        std.time.sleep(config.running_delay_ms * std.time.ns_per_ms);
     }
     
-    fn processFrameWithSdl(self: *App) !void {
+    fn processFrameWithSdl(self: *App, config: AppConfig) !void {
         if (self.sdl_renderer) |*renderer| {
             // Process inputs
             const app_input = renderer.processEvents(self.spawn_mode, self.paused);
@@ -161,7 +157,7 @@ pub const App = struct {
                 const map_y = @divFloor(app_input.mouse_y - renderer.windowPadding(), renderer.cellSize());
                 
                 // Make sure coordinates are within map bounds
-                if (map_x >= 0 and map_x < self.config.map_width and map_y >= 0 and map_y < self.config.map_height) {
+                if (map_x >= 0 and map_x < config.map_width and map_y >= 0 and map_y < config.map_height) {
                     try self.simulation.spawnAgent(.{
                         .x = @intCast(map_x),
                         .y = @intCast(map_y),
@@ -188,7 +184,7 @@ pub const App = struct {
             
             // Update simulation if not paused or if step requested
             if (!self.paused or self.step_once) {
-                try self.simulation.update();
+                try self.simulation.update(config);
                 self.step_count += 1;
                 self.frames_since_check += 1;
                 self.step_once = false;
@@ -198,13 +194,10 @@ pub const App = struct {
                 const elapsed = current_time - self.last_performance_check;
                 
                 if (elapsed >= 1000) {
-                    self.current_fps = @as(f32, @floatFromInt(self.frames_since_check)) / (@as(f32, @floatFromInt(elapsed)) / 1000.0);
+                    self.current_fps = @as(f32, @floatFromInt(self.frames_since_check)) * 1000.0 / @as(f32, @floatFromInt(elapsed));
                     
                     // Print status
-                    std.debug.print("\rStep: {d} | ", .{self.step_count});
-                    self.simulation.printStats();
-                    std.debug.print(" | {d:.2} updates/sec", .{self.current_fps});
-                    std.debug.print("                      \r", .{});
+                    std.debug.print("\rStep: {d} | Agents: {d} | Interactions: {d} | {d:.2} updates/sec\r", .{self.step_count, self.simulation.agents.items.len, self.simulation.interaction_system.getInteractions().len, self.current_fps});
                     
                     self.frames_since_check = 0;
                     self.last_performance_check = current_time;
@@ -226,9 +219,9 @@ pub const App = struct {
             
             // Add a small delay to control simulation speed
             if (!self.paused) {
-                std.time.sleep(self.config.running_delay_ms * std.time.ns_per_ms);
+                std.time.sleep(config.running_delay_ms * std.time.ns_per_ms);
             } else {
-                std.time.sleep(self.config.paused_delay_ms * std.time.ns_per_ms);
+                std.time.sleep(config.paused_delay_ms * std.time.ns_per_ms);
             }
         }
     }

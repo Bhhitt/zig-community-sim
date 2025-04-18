@@ -146,6 +146,7 @@ pub const Agent = struct {
     type: AgentType,
     health: u8,
     energy: u8,
+    hunger: u8, // 0 = not hungry, higher = hungrier
     seed: u64, // Unique seed for agent's random movements
     
     // Agent configuration
@@ -161,6 +162,7 @@ pub const Agent = struct {
             .type = agent_type,
             .health = health,
             .energy = energy,
+            .hunger = 0,
             .seed = std.crypto.random.int(u64), // Initialize with random seed
         };
     }

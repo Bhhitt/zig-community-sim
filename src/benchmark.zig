@@ -13,6 +13,11 @@ pub const BenchmarkConfig = struct {
     map_width: usize = 200,
     /// The height of the map.
     map_height: usize = 200,
+    // Simulation config fields for compatibility
+    food_spawn_chance: u8 = 10,
+    food_regrow_chance: f32 = 0.02,
+    hunger_threshold: u8 = 80,
+    hunger_health_penalty: u8 = 1,
 };
 
 /// Runs a benchmark with the given allocator and configuration.
@@ -25,7 +30,7 @@ pub fn runBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig) !void
     std.debug.print("Starting benchmark with {d} agents for {d} iterations...\n", 
         .{config.agent_count, config.iterations});
     
-    var simulation = try Simulation.init(allocator, config.map_width, config.map_height);
+    var simulation = try Simulation.init(allocator, config.map_width, config.map_height, config);
     defer simulation.deinit();
     
     // Add agents
@@ -64,7 +69,7 @@ pub fn runBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig) !void
     // Run iterations
     for (0..config.iterations) |i| {
         const iteration_start = std.time.milliTimestamp();
-        try simulation.update();
+        try simulation.update(config);
         const iteration_time = std.time.milliTimestamp() - iteration_start;
         
         if (i % 10 == 0 or i == config.iterations - 1) {

@@ -8,9 +8,9 @@ const max_energy = 100;
 const max_health = 100;
 const health_regen = 1;
 
-pub fn updateAgent(agent: *Agent, map: *const Map) void {
+pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
     // Debug: Print position before update
-    std.debug.print("[AgentUpdateSystem] Before: id={} type={s} pos=({}, {})\n", .{ agent.id, @tagName(agent.type), agent.x, agent.y });
+    // std.debug.print("[AgentUpdateSystem] Before: id={} type={s} pos=({}, {})\n", .{ agent.id, @tagName(agent.type), agent.x, agent.y });
     // Get movement pattern for this agent type
     const movement_pattern = agent.type.getMovementPattern();
     
@@ -71,6 +71,23 @@ pub fn updateAgent(agent: *Agent, map: *const Map) void {
             agent.energy = 0;
         }
     }
+    
+    // Hunger system: increase hunger every step
+    if (agent.hunger < 100) {
+        agent.hunger += 1;
+    }
+    // If agent is on food, eat and reduce hunger, remove food from map
+    if (map.getFoodAt(agent.x, agent.y) > 0) {
+        agent.hunger = 0; // Fully satiated
+        map.setFoodAt(agent.x, agent.y, 0);
+    }
+    // Health penalty for high hunger (configurable)
+    if (agent.hunger >= config.hunger_threshold) {
+        if (agent.health > 0) {
+            agent.health -= config.hunger_health_penalty;
+        }
+    }
+    
     // Debug: Print position after update
-    std.debug.print("[AgentUpdateSystem] After: id={} type={s} pos=({}, {})\n", .{ agent.id, @tagName(agent.type), agent.x, agent.y });
+    // std.debug.print("[AgentUpdateSystem] After: id={} type={s} pos=({}, {})\n", .{ agent.id, @tagName(agent.type), agent.x, agent.y });
 }

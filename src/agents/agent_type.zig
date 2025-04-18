@@ -161,3 +161,5 @@ pub const AgentType = enum {
         };
     }
 };
+
+pub const AgentTypeFields = @typeInfo(AgentType).@"enum".fields;
