@@ -61,6 +61,17 @@ zig build run -- benchmark 2000 200
 - **S:** Add 100 random agents
 - **ESC:** Quit
 
+## Food, Hunger, and Configuration
+
+- **Food system:** The map has a food layer (yellow cells in GUI) that agents can eat to reduce hunger. Food regrows at a configurable probability per empty cell per step.
+- **Hunger system:** Agents gain hunger each step. High hunger reduces health. Both hunger threshold and penalty are configurable.
+- **Configurable parameters:**
+    - `food_spawn_chance`: Initial food density (percent per cell)
+    - `food_regrow_chance`: Food regrowth probability per cell per step (float, e.g., 0.0001)
+    - `hunger_threshold`: Hunger level at which health penalty starts
+    - `hunger_health_penalty`: Health lost per step above threshold
+- All parameters are set in `src/core/config.zig`.
+
 ## Project Structure
 - `src/agents/` — Agent logic, types, movement, interactions
 - `src/core/` — Simulation, configuration, core logic

@@ -1,5 +1,11 @@
 # Development Log
 
+## 2025-04-18 — Food Regrowth Granularity, Config, and Output Cleanup
+- Made `food_regrow_chance` a float (f32) for fine-grained control; can now set to very small probabilities (e.g., 0.0001)
+- All food/hunger parameters are now easily configurable in `src/core/config.zig`
+- Food is now visualized as yellow cells in the GUI
+- Removed debug/"cringe" output from the renderer for a clean terminal
+
 ## 2025-04-17 — Modernization and Documentation
 - Refactored all imports to use Zig module/component references (no relative or file extension imports)
 - Added comprehensive doc comments to all major modules: agent_type, terrain_effects, interaction_type, map, render_config, benchmark, etc.
