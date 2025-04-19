@@ -28,50 +28,56 @@ pub const TerrainEffect = struct {
     fn getData(agent_type_: AgentType, terrain_: Terrain) TerrainEffectData {
         // Define terrain effect data tables for each agent type
         // These could be moved to a data file/constant in a larger system
-        const terrain_effects = [6][5]TerrainEffectData{
+        const terrain_effects = [6][6]TerrainEffectData{
             // Settler effects
-            [5]TerrainEffectData{
+            [6]TerrainEffectData{
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Empty
+                .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Dirt
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 1, .health_effect = 1 },  // Grass
                 .{ .movement_cost = 1, .movement_prob = 80, .energy_gain = 0, .health_effect = 0 },   // Forest
                 .{ .movement_cost = 3, .movement_prob = 30, .energy_gain = 0, .health_effect = -1 },  // Mountain
                 .{ .movement_cost = 5, .movement_prob = 20, .energy_gain = 0, .health_effect = -2 },  // Water
             },
             // Explorer effects
-            [5]TerrainEffectData{
+            [6]TerrainEffectData{
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Empty
+                .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Dirt
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Grass
                 .{ .movement_cost = 1, .movement_prob = 80, .energy_gain = 0, .health_effect = 0 },   // Forest
                 .{ .movement_cost = 1, .movement_prob = 70, .energy_gain = 0, .health_effect = 0 },   // Mountain
                 .{ .movement_cost = 3, .movement_prob = 40, .energy_gain = 0, .health_effect = -1 },  // Water
             },
             // Builder effects
-            [5]TerrainEffectData{
+            [6]TerrainEffectData{
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Empty
+                .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Dirt
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Grass
                 .{ .movement_cost = 2, .movement_prob = 70, .energy_gain = 0, .health_effect = 0 },   // Forest
                 .{ .movement_cost = 4, .movement_prob = 20, .energy_gain = 0, .health_effect = -1 },  // Mountain
                 .{ .movement_cost = 6, .movement_prob = 10, .energy_gain = 0, .health_effect = -2 },  // Water
             },
             // Farmer effects
-            [5]TerrainEffectData{
+            [6]TerrainEffectData{
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Empty
+                .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Dirt
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 2, .health_effect = 1 },  // Grass
                 .{ .movement_cost = 1, .movement_prob = 70, .energy_gain = 1, .health_effect = 0 },   // Forest
                 .{ .movement_cost = 4, .movement_prob = 20, .energy_gain = 0, .health_effect = -1 },  // Mountain
                 .{ .movement_cost = 4, .movement_prob = 30, .energy_gain = 1, .health_effect = 0 },   // Water
             },
             // Miner effects
-            [5]TerrainEffectData{
+            [6]TerrainEffectData{
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Empty
+                .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Dirt
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Grass
                 .{ .movement_cost = 2, .movement_prob = 60, .energy_gain = 0, .health_effect = 0 },   // Forest
                 .{ .movement_cost = 1, .movement_prob = 90, .energy_gain = 2, .health_effect = 0 },   // Mountain
                 .{ .movement_cost = 5, .movement_prob = 20, .energy_gain = 0, .health_effect = -1 },  // Water
             },
             // Scout effects
-            [5]TerrainEffectData{
+            [6]TerrainEffectData{
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Empty
+                .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Dirt
                 .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 0, .health_effect = 0 },  // Grass
                 .{ .movement_cost = 0, .movement_prob = 90, .energy_gain = 0, .health_effect = 0 },   // Forest
                 .{ .movement_cost = 2, .movement_prob = 70, .energy_gain = 0, .health_effect = 0 },   // Mountain

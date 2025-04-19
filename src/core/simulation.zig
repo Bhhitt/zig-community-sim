@@ -9,7 +9,7 @@ const agent_update_system = @import("agent_update_system");
 const AgentTypeFields = @import("agent_type").AgentTypeFields;
 
 const max_agents = 100000; // Increased to handle stress tests
-const thread_count = 10; // Number of threads to use for agent updates
+const thread_count = 1; // Number of threads to use for agent updates (FORCE SINGLE-THREADED FOR DEBUG)
 
 // Thread context for parallel agent updates
 const AgentUpdateContext = struct {
@@ -54,10 +54,14 @@ pub const Simulation = struct {
         health: u8 = 100,
         energy: u8 = 100,
     }) !void {
+        std.debug.print("[DEBUG] spawnAgent called: id={} x={} y={} type={s} health={} energy={} agents.len={}\n", .{
+            self.next_agent_id, config.x, config.y, @tagName(config.type), config.health, config.energy, self.agents.items.len
+        });
         const agent = Agent.init(self.next_agent_id, config.x, config.y, config.type, config.health, config.energy);
 
         try self.agents.append(agent);
         self.next_agent_id += 1;
+        std.debug.print("[DEBUG] Agent appended: id={} total_agents={}\n", .{agent.id, self.agents.items.len});
     }
 
     pub fn printMap(self: Simulation) !void {
@@ -115,6 +119,7 @@ pub const Simulation = struct {
     }
 
     pub fn update(self: *Simulation, config: anytype) !void {
+        std.debug.print("[DEBUG] update called: agents.len={} map.size={}x{}\n", .{self.agents.items.len, self.map.width, self.map.height});
         // Regrow food every step with config value (now f32)
         self.map.regrowFood(config.food_regrow_chance);
 
@@ -123,7 +128,11 @@ pub const Simulation = struct {
         // Skip threading if very few agents
         if (agent_count < thread_count * 2) {
             // Use original single-threaded approach for small agent counts
+            var idx: usize = 0;
             for (self.agents.items) |*agent| {
+                std.debug.print("[DEBUG] update: agent idx={} id={} pos=({}, {}) health={} energy={} type={s}\n", .{
+                    idx, agent.id, agent.x, agent.y, agent.health, agent.energy, @tagName(agent.type)
+                });
                 if (!self.interaction_system.isAgentInteracting(agent.id)) {
                     agent_update_system.updateAgent(agent, &self.map, config);
 
@@ -135,9 +144,11 @@ pub const Simulation = struct {
                         agent.y = @as(f32, @floatFromInt(self.map.height - 1));
                     }
                 }
+                idx += 1;
             }
         } else {
             // Use multi-threaded approach for larger agent counts
+            std.debug.print("[DEBUG] update: multi-threaded batch update\n", .{});
             var mutex = Thread.Mutex{};
             var threads: [thread_count]Thread = undefined;
             var contexts: [thread_count]AgentUpdateContext = undefined;
@@ -148,10 +159,8 @@ pub const Simulation = struct {
             for (0..thread_count) |i| {
                 const start = i * batch_size;
                 const end = @min(start + batch_size, agent_count);
-
                 // Skip empty batches
                 if (start >= agent_count) continue;
-
                 contexts[i] = AgentUpdateContext{
                     .agents = self.agents.items,
                     .simulation = self,
@@ -159,10 +168,9 @@ pub const Simulation = struct {
                     .end_index = end,
                     .mutex = &mutex,
                 };
-
+                std.debug.print("[DEBUG] update: spawning thread {} for agents[{}..{})\n", .{i, start, end});
                 threads[i] = try Thread.spawn(.{}, updateAgentBatch, .{&contexts[i], config});
             }
-
             // Wait for all threads to complete
             for (0..thread_count) |i| {
                 if (i * batch_size < agent_count) {
@@ -170,7 +178,7 @@ pub const Simulation = struct {
                 }
             }
         }
-
+        std.debug.print("[DEBUG] update: calling interaction_system.update()\n", .{});
         // Update interactions (this remains single-threaded for simplicity)
         try self.interaction_system.update(self.agents.items);
     }

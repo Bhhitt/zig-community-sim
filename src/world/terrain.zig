@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const Terrain = enum {
     Empty,
+    Dirt,
     Grass,
     Forest,
     Mountain,
@@ -9,7 +10,8 @@ pub const Terrain = enum {
     
     pub fn getSymbol(self: Terrain) u8 {
         return switch (self) {
-            .Empty => '.',
+            .Dirt => '.',
+            .Empty => ' ', // Use blank for truly empty
             .Grass => ',',
             .Forest => 'f',
             .Mountain => '^',
@@ -25,26 +27,32 @@ pub const TerrainGenerator = struct {
         height: usize, 
         seed_value: ?u64
     ) !void {
-        // First, fill with mostly empty terrain as a base
+        // First, fill with mostly dirt terrain as a base
         for (terrain) |*cell| {
-            cell.* = .Empty;
+            cell.* = .Dirt;
         }
-        
+
+        // --- COASTAL GENERATION ---
+        const coast_width = @max(3, width / 12); // Coast is ~8% of map width
+        for (0..height) |y| {
+            for (0..coast_width) |x| {
+                terrain[y * width + x] = .Water;
+            }
+            // Optionally: add a "beach" (dirt) band next to water
+            for (coast_width..coast_width+2) |x| {
+                if (x < width) terrain[y * width + x] = .Dirt;
+            }
+        }
+
         // Use a timestamp-based seed for randomness if none provided
         var seed: u64 = seed_value orelse @as(u64, @bitCast(std.time.milliTimestamp()));
         
-        // Generate coherent terrain features
-        // 1. Create a few clusters of grass
-        try generateTerrainFeature(terrain, width, height, .Grass, 4, 20, &seed);
-        
-        // 2. Create some forest clusters (smaller number, smaller size)
-        try generateTerrainFeature(terrain, width, height, .Forest, 3, 12, &seed);
-        
-        // 3. Create a mountain range
-        try generateTerrainFeature(terrain, width, height, .Mountain, 1, 8, &seed);
-        
-        // 4. Create a water body (like a lake or river)
-        try generateTerrainFeature(terrain, width, height, .Water, 2, 15, &seed);
+        // Make cluster count and size proportional to map size for better small-map coverage
+        const min_dim = if (width < height) width else height;
+        try generateTerrainFeature(terrain, width, height, .Grass, @max(1, min_dim / 6), @max(5, min_dim / 4), &seed);
+        try generateTerrainFeature(terrain, width, height, .Forest, @max(1, min_dim / 10), @max(3, min_dim / 6), &seed);
+        try generateTerrainFeature(terrain, width, height, .Mountain, @max(1, min_dim / 15), @max(2, min_dim / 8), &seed);
+        try generateTerrainFeature(terrain, width, height, .Water, @max(1, min_dim / 8), @max(4, min_dim / 5), &seed);
     }
     
     // Helper function to generate terrain features (clusters of similar terrain)

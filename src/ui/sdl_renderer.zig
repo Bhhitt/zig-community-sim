@@ -213,9 +213,10 @@ pub const SdlRenderer = struct {
     fn getTerrainColor(terrain: Terrain) ColorRGB {
         return switch (terrain) {
             .Empty => .{ .r = 40, .g = 40, .b = 40 },
+            .Dirt => .{ .r = 139, .g = 69, .b = 19 }, // brown for dirt
             .Grass => .{ .r = 100, .g = 200, .b = 100 },
             .Forest => .{ .r = 34, .g = 139, .b = 34 },
-            .Mountain => .{ .r = 139, .g = 137, .b = 137 },
+            .Mountain => .{ .r = 160, .g = 160, .b = 160 },
             .Water => .{ .r = 30, .g = 144, .b = 255 },
         };
     }

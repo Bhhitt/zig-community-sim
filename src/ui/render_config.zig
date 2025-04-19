@@ -28,7 +28,7 @@ pub const RenderConfig = struct {
         const cell_size_h = @divTrunc(avail_height, @as(i32, @intCast(map_height)));
         var cell_size = if (cell_size_w < cell_size_h) cell_size_w else cell_size_h;
         // Set a more reasonable minimum cell size for visibility
-        if (cell_size < 16) cell_size = 16;
+        if (cell_size < 8) cell_size = 8;
         // Padding for aesthetics
         const window_padding: i32 = @divTrunc(margin, 2);
         return .{

@@ -112,6 +112,7 @@ pub const Map = struct {
                 const terrain = self.getTerrainAt(x, y);
                 const food = self.getFoodAt(x, y);
                 const symbol: u8 = if (food > 0) '*' else switch (terrain) {
+                    .Dirt => '.',
                     .Empty => ' ',
                     .Grass => ',',
                     .Forest => 'F',
@@ -160,6 +161,7 @@ pub const Map = struct {
             for (0..self.width) |x| {
                 const terrain = self.getTerrainAt(x, y);
                 const symbol: u8 = switch (terrain) {
+                    .Dirt => '.',
                     .Empty => ' ',
                     .Grass => ',',
                     .Forest => 'F',
