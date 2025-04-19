@@ -63,6 +63,10 @@ const Agent = struct {
     }
 };
 
+const DEFAULT_AGENT_COUNT = 10_000;
+const DEFAULT_ITERATIONS = 20_000;
+const DEFAULT_THREAD_COUNT = 4;
+
 fn runPerformanceTest(agents: []Agent, iterations: usize) void {
     const start_time = std.time.milliTimestamp();
     for (0..iterations) |_| {
@@ -71,11 +75,50 @@ fn runPerformanceTest(agents: []Agent, iterations: usize) void {
         }
     }
     const end_time = std.time.milliTimestamp();
-    std.debug.print("Performed {d} agent updates in {d} ms\n", .{agents.len * iterations, end_time - start_time});
+    std.debug.print("[Single-threaded] Performed {d} agent updates in {d} ms\n", .{agents.len * iterations, end_time - start_time});
 }
 
-pub fn main() void {
-    var agents: [1000]Agent = undefined;
+fn runPerformanceTestMultiThreaded(agents: []Agent, iterations: usize, thread_count: usize) !void {
+    const chunk_size = (agents.len + thread_count - 1) / thread_count;
+    var threads: [DEFAULT_THREAD_COUNT]std.Thread = undefined;
+    var results: [DEFAULT_THREAD_COUNT]usize = undefined;
+    const start_time = std.time.milliTimestamp();
+    for (0..thread_count) |t| {
+        const start = t * chunk_size;
+        const end = @min(start + chunk_size, agents.len);
+        if (start >= end) {
+            results[t] = 0;
+            continue;
+        }
+        threads[t] = try std.Thread.spawn(.{}, struct {
+            fn run(slice: []Agent, thread_iterations: usize, results_ptr: *usize) void {
+                var sum: usize = 0;
+                for (0..thread_iterations) |_| {
+                    for (slice) |*agent| {
+                        agent.update();
+                        sum += agent.energy;
+                    }
+                }
+                results_ptr.* = sum;
+            }
+        }.run, .{agents[start..end], iterations, &results[t]});
+    }
+    for (0..thread_count) |t| {
+        threads[t].join();
+    }
+    const end_time = std.time.milliTimestamp();
+    var total_sum: usize = 0;
+    for (results) |s| total_sum += s;
+    std.debug.print("[Multi-threaded] Performed {d} agent updates in {d} ms (energy sum: {d})\n", .{agents.len * iterations, end_time - start_time, total_sum});
+}
+
+pub fn main() !void {
+    var gpa = std.heap.page_allocator;
+    const agent_count = DEFAULT_AGENT_COUNT;
+    const iterations = DEFAULT_ITERATIONS;
+    const thread_count = DEFAULT_THREAD_COUNT;
+    var agents = try gpa.alloc(Agent, agent_count);
+    defer gpa.free(agents);
     for (0..agents.len) |i| {
         agents[i] = Agent{
             .id = i,
@@ -88,5 +131,6 @@ pub fn main() void {
             .seed = @as(u64, i) * 123456789,
         };
     }
-    runPerformanceTest(agents[0..], 10000);
+    runPerformanceTest(agents[0..], iterations);
+    try runPerformanceTestMultiThreaded(agents[0..], iterations, thread_count);
 }

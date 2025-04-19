@@ -18,6 +18,7 @@ pub const BenchmarkConfig = struct {
     food_regrow_chance: f32 = 0.02,
     hunger_threshold: u8 = 80,
     hunger_health_penalty: u8 = 1,
+    thread_count: usize = 1,
 };
 
 /// Runs a benchmark with the given allocator and configuration.
@@ -69,7 +70,7 @@ pub fn runBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig) !void
     // Run iterations
     for (0..config.iterations) |i| {
         const iteration_start = std.time.milliTimestamp();
-        try simulation.update(config);
+        try simulation.update(allocator, config);
         const iteration_time = std.time.milliTimestamp() - iteration_start;
         
         if (i % 10 == 0 or i == config.iterations - 1) {
@@ -91,4 +92,20 @@ pub fn runBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig) !void
     std.debug.print("Average iteration time: {d:.2} ms\n", .{avg_iteration_time});
     std.debug.print("Agents processed per second: {d:.2}\n", 
         .{@as(f64, @floatFromInt(config.agent_count)) * 1000.0 / avg_iteration_time});
+}
+
+fn runAndReportBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig, label: []const u8) !void {
+    std.debug.print("\n=== Benchmark ({s}) ===\n", .{label});
+    try runBenchmark(allocator, config);
+}
+
+pub fn main() !void {
+    const gpa = std.heap.page_allocator;
+    const base_config = BenchmarkConfig{};
+    // Single-threaded
+    try runAndReportBenchmark(gpa, base_config, "single-threaded");
+    // Multi-threaded (use half or all available cores, or set to 4 for demo)
+    var mt_config = base_config;
+    mt_config.thread_count = 4;
+    try runAndReportBenchmark(gpa, mt_config, "multi-threaded (4 threads)");
 }

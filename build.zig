@@ -95,6 +95,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/core/interactions.zig"),
         .imports = &.{
             .{ .name = "agent", .module = agent_module },
+            .{ .name = "agent_type", .module = agent_type_module },
             .{ .name = "interaction_type", .module = interaction_type_module },
         },
     });
@@ -109,8 +110,10 @@ pub fn build(b: *std.Build) void {
             .{ .name = "interactions", .module = interactions_module },
             .{ .name = "terrain", .module = terrain_module },
             .{ .name = "agent_update_system", .module = agent_update_system_module },
+            .{ .name = "movement_types", .module = movement_types_module },
         },
     });
+    simulation_module.addImport("agent_type", agent_type_module);
     
     // UI modules
     const render_config_module = b.addModule("render_config", .{
@@ -182,17 +185,36 @@ pub fn build(b: *std.Build) void {
         },
     });
     
-    // Benchmark module
-    const benchmark_module = b.addModule("benchmark", .{
+    // Benchmark executable
+    const benchmark_exe = b.addExecutable(.{
+        .name = "benchmark",
         .root_source_file = b.path("src/benchmark.zig"),
-        .imports = &.{
-            .{ .name = "agent", .module = agent_module },
-            .{ .name = "agent_type", .module = agent_type_module },
-            .{ .name = "map", .module = map_module },
-            .{ .name = "simulation", .module = simulation_module },
-        },
+        .target = target,
+        .optimize = optimize,
     });
+    benchmark_exe.root_module.addImport("simulation", simulation_module);
+    benchmark_exe.root_module.addImport("agent_type", agent_type_module);
+    benchmark_exe.root_module.addImport("config", config_module);
+    benchmark_exe.root_module.addImport("map", map_module);
+    benchmark_exe.root_module.addImport("interactions", interactions_module);
+    benchmark_exe.root_module.addImport("movement_types", movement_types_module);
+    benchmark_exe.root_module.addImport("agent_update_system", agent_update_system_module);
+    benchmark_exe.root_module.addImport("terrain", terrain_module);
+    benchmark_exe.root_module.addImport("terrain_effects", terrain_effects_module);
+    benchmark_exe.root_module.addImport("interaction_type", interaction_type_module);
+    b.installArtifact(benchmark_exe);
     
+    // Install the benchmark binary
+    b.installArtifact(benchmark_exe);
+    // Add a step to run the benchmark
+    const run_benchmark = b.addRunArtifact(benchmark_exe);
+    const benchmark_step = b.step("benchmark", "Run the simulation benchmark");
+    benchmark_step.dependOn(&run_benchmark.step);
+
+    // Create a run step for the benchmark executable
+    // const benchmark_step = b.step("benchmark", "Run the simulation benchmark");
+    // benchmark_step.dependOn(&benchmark_exe.step);
+
     // Create the main executable
     const exe = b.addExecutable(.{
         .name = "zig-community-sim",
@@ -233,7 +255,6 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("app", app_module);
     exe.root_module.addImport("config", config_module);
     exe.root_module.addImport("agent_type", agent_type_module);
-    exe.root_module.addImport("benchmark", benchmark_module);
     exe.root_module.addImport("agent", agent_module);
     exe.root_module.addImport("map", map_module);
     exe.root_module.addImport("build_options", build_options_module);
@@ -253,14 +274,6 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the application");
     run_step.dependOn(&run_cmd.step);
     
-    // Add a benchmark step
-    const bench_cmd = b.addRunArtifact(exe);
-    bench_cmd.step.dependOn(b.getInstallStep());
-    bench_cmd.addArg("benchmark");
-    
-    const benchmark_step = b.step("benchmark", "Run performance benchmark");
-    benchmark_step.dependOn(&bench_cmd.step);
-
     // Create a separate build command for perf_test
     const perf_test = b.addExecutable(.{
         .name = "perf_test",
@@ -301,18 +314,25 @@ pub fn build(b: *std.Build) void {
     });
 
     // Main test suite
-    const tests = b.addTest(.{
+    const main_tests = b.addTest(.{
         .root_source_file = b.path("tests/main.zig"),
+        .name = "main_tests",
         .target = target,
         .optimize = optimize,
     });
-    tests.root_module.addImport("agent", agent_module);
-    tests.root_module.addImport("map", map_module);
-    tests.root_module.addImport("test_utils", test_utils_module);
-    tests.root_module.addImport("agent_update_system", agent_update_system_module);
-    tests.root_module.addImport("config", config_module);
-    const run_tests = b.addRunArtifact(tests);
-    test_step.dependOn(&run_tests.step);
+    main_tests.root_module.addImport("agent", agent_module);
+    main_tests.root_module.addImport("map", map_module);
+    main_tests.root_module.addImport("test_utils", test_utils_module);
+    main_tests.root_module.addImport("simulation", simulation_module);
+    main_tests.root_module.addImport("agent_update_system", agent_update_system_module);
+    main_tests.root_module.addImport("config", config_module);
+    main_tests.root_module.addImport("agent_type", agent_type_module);
+    main_tests.root_module.addImport("movement_types", movement_types_module);
+    main_tests.root_module.addImport("terrain_effects", terrain_effects_module);
+    main_tests.root_module.addImport("interaction_type", interaction_type_module);
+    main_tests.root_module.addImport("interactions", interactions_module);
+    main_tests.root_module.addImport("terrain", terrain_module);
+    test_step.dependOn(&main_tests.step);
 
     // Agent tests
     const agent_test_exe = b.addTest(.{
@@ -355,4 +375,23 @@ pub fn build(b: *std.Build) void {
     integration_test_exe.root_module.addImport("agent_update_system", agent_update_system_module);
     const run_integration_tests = b.addRunArtifact(integration_test_exe);
     integration_tests.dependOn(&run_integration_tests.step);
+
+    // Register src/core/simulation.zig as a module named 'simulation' for both main and test builds
+    const simulation = b.addModule("simulation", .{ .root_source_file = b.path("src/core/simulation.zig") });
+    exe.root_module.addImport("simulation", simulation);
+    main_tests.root_module.addImport("simulation", simulation);
+    agent_test_exe.root_module.addImport("simulation", simulation);
+    interaction_test_exe.root_module.addImport("simulation", simulation);
+    integration_test_exe.root_module.addImport("simulation", simulation);
+
+    // Ensure simulation module has all needed imports
+    simulation.addImport("map", map_module);
+    simulation.addImport("agent", agent_module);
+    simulation.addImport("agent_type", agent_type_module);
+    simulation.addImport("movement_types", movement_types_module);
+    simulation.addImport("terrain_effects", terrain_effects_module);
+    simulation.addImport("interaction_type", interaction_type_module);
+    simulation.addImport("agent_update_system", agent_update_system_module);
+    simulation.addImport("interactions", interactions_module);
+    simulation.addImport("terrain", terrain_module);
 }

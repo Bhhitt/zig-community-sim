@@ -37,13 +37,7 @@ pub const Interaction = struct {
     }
 };
 
-// TerrainEffectData stores the actual effect values
-pub const TerrainEffectData = struct {
-    movement_cost: u8, // Additional energy cost for this terrain
-    movement_prob: u8, // Probability of successful movement (out of 100)
-    energy_gain: u8,   // Energy gained from being on this terrain (per update)
-    health_effect: i8, // Health effect from being on this terrain (per update)
-};
+const TerrainEffectData = @import("terrain_effects").TerrainEffectData;
 
 // Represents how terrain affects different agent types
 pub const TerrainEffect = struct {
@@ -55,74 +49,12 @@ pub const TerrainEffect = struct {
         .health_effect = 0,
     };
     
-    // Terrain effect constants for each agent type and terrain
-    const TERRAIN_EFFECTS = struct {
-        const SETTLER = [5]TerrainEffectData{
-            // Empty, Grass, Forest, Mountain, Water
-            DEFAULT_EFFECT,
-            .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 1, .health_effect = 1 },  // Settlers like grasslands
-            .{ .movement_cost = 1, .movement_prob = 80, .energy_gain = 0, .health_effect = 0 },
-            .{ .movement_cost = 3, .movement_prob = 30, .energy_gain = 0, .health_effect = -1 },
-            .{ .movement_cost = 5, .movement_prob = 20, .energy_gain = 0, .health_effect = -2 },
-        };
-        
-        const EXPLORER = [5]TerrainEffectData{
-            // Empty, Grass, Forest, Mountain, Water
-            DEFAULT_EFFECT,
-            DEFAULT_EFFECT,
-            .{ .movement_cost = 1, .movement_prob = 80, .energy_gain = 0, .health_effect = 0 },
-            .{ .movement_cost = 1, .movement_prob = 70, .energy_gain = 0, .health_effect = 0 }, // Explorers handle mountains better
-            .{ .movement_cost = 3, .movement_prob = 40, .energy_gain = 0, .health_effect = -1 }, // Explorers are better at crossing water
-        };
-        
-        const BUILDER = [5]TerrainEffectData{
-            // Empty, Grass, Forest, Mountain, Water
-            DEFAULT_EFFECT,
-            DEFAULT_EFFECT,
-            .{ .movement_cost = 2, .movement_prob = 70, .energy_gain = 0, .health_effect = 0 },
-            .{ .movement_cost = 4, .movement_prob = 20, .energy_gain = 0, .health_effect = -1 },
-            .{ .movement_cost = 6, .movement_prob = 10, .energy_gain = 0, .health_effect = -2 }, // Builders struggle in water
-        };
-        
-        const FARMER = [5]TerrainEffectData{
-            // Empty, Grass, Forest, Mountain, Water
-            DEFAULT_EFFECT,
-            .{ .movement_cost = 0, .movement_prob = 100, .energy_gain = 2, .health_effect = 1 }, // Farmers thrive on grassland
-            .{ .movement_cost = 1, .movement_prob = 70, .energy_gain = 1, .health_effect = 0 },
-            .{ .movement_cost = 4, .movement_prob = 20, .energy_gain = 0, .health_effect = -1 },
-            .{ .movement_cost = 4, .movement_prob = 30, .energy_gain = 1, .health_effect = 0 }, // Farmers can use water
-        };
-        
-        const MINER = [5]TerrainEffectData{
-            // Empty, Grass, Forest, Mountain, Water
-            DEFAULT_EFFECT,
-            DEFAULT_EFFECT,
-            .{ .movement_cost = 2, .movement_prob = 60, .energy_gain = 0, .health_effect = 0 },
-            .{ .movement_cost = 1, .movement_prob = 90, .energy_gain = 2, .health_effect = 0 }, // Miners thrive in mountains
-            .{ .movement_cost = 5, .movement_prob = 20, .energy_gain = 0, .health_effect = -1 },
-        };
-        
-        const SCOUT = [5]TerrainEffectData{
-            // Empty, Grass, Forest, Mountain, Water
-            DEFAULT_EFFECT,
-            DEFAULT_EFFECT,
-            .{ .movement_cost = 0, .movement_prob = 90, .energy_gain = 0, .health_effect = 0 }, // Scouts are good in forests
-            .{ .movement_cost = 2, .movement_prob = 70, .energy_gain = 0, .health_effect = 0 },
-            .{ .movement_cost = 3, .movement_prob = 50, .energy_gain = 0, .health_effect = -1 },
-        };
-    };
+    // (Legacy terrain effect arrays removed; use terrain_effects.zig for all terrain logic)
     
     // Get terrain effects based on agent type and terrain
     pub fn forAgentAndTerrain(agent_type: AgentType, terrain: Terrain) TerrainEffectData {
-        const terrain_idx = @intFromEnum(terrain);
-        return switch (agent_type) {
-            .Settler => TERRAIN_EFFECTS.SETTLER[terrain_idx],
-            .Explorer => TERRAIN_EFFECTS.EXPLORER[terrain_idx],
-            .Builder => TERRAIN_EFFECTS.BUILDER[terrain_idx],
-            .Farmer => TERRAIN_EFFECTS.FARMER[terrain_idx],
-            .Miner => TERRAIN_EFFECTS.MINER[terrain_idx],
-            .Scout => TERRAIN_EFFECTS.SCOUT[terrain_idx],
-        };
+        // Use the canonical terrain effect logic from terrain_effects.zig
+        return @import("terrain_effects").TerrainEffect.forAgentAndTerrain(agent_type, terrain);
     }
 };
 

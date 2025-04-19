@@ -6,6 +6,7 @@ comptime {
     _ = @import("interaction_tests.zig");
     _ = @import("movement_tests.zig");
     _ = @import("integration_tests.zig");
+    _ = @import("parallel_tests.zig");
 }
 
 // Add agent and map as dependencies

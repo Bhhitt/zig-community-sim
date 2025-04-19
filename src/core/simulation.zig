@@ -9,7 +9,8 @@ const agent_update_system = @import("agent_update_system");
 const AgentTypeFields = @import("agent_type").AgentTypeFields;
 
 const max_agents = 100000; // Increased to handle stress tests
-const thread_count = 1; // Number of threads to use for agent updates (FORCE SINGLE-THREADED FOR DEBUG)
+
+// Number of threads to use for agent updates is now configurable via config.thread_count
 
 // Thread context for parallel agent updates
 const AgentUpdateContext = struct {
@@ -114,14 +115,14 @@ pub const Simulation = struct {
         }
     }
 
-    pub fn update(self: *Simulation, config: anytype) !void {
+    pub fn update(self: *Simulation, allocator: std.mem.Allocator, config: anytype) !void {
         // Regrow food every step with config value (now f32)
         self.map.regrowFood(config.food_regrow_chance);
 
         const agent_count = self.agents.items.len;
 
         // Skip threading if very few agents
-        if (agent_count < thread_count * 2) {
+        if (agent_count < config.thread_count * 2) {
             // Use original single-threaded approach for small agent counts
             var idx: usize = 0;
             for (self.agents.items) |*agent| {
@@ -141,13 +142,15 @@ pub const Simulation = struct {
         } else {
             // Use multi-threaded approach for larger agent counts
             var mutex = Thread.Mutex{};
-            var threads: [thread_count]Thread = undefined;
-            var contexts: [thread_count]AgentUpdateContext = undefined;
+            var threads = try allocator.alloc(Thread, config.thread_count);
+            defer allocator.free(threads);
+            var contexts = try allocator.alloc(AgentUpdateContext, config.thread_count);
+            defer allocator.free(contexts);
 
-            const batch_size = (agent_count + thread_count - 1) / thread_count; // Ceiling division
+            const batch_size = (agent_count + config.thread_count - 1) / config.thread_count; // Ceiling division
 
             // Create and start threads
-            for (0..thread_count) |i| {
+            for (0..config.thread_count) |i| {
                 const start = i * batch_size;
                 const end = @min(start + batch_size, agent_count);
                 // Skip empty batches
@@ -162,7 +165,7 @@ pub const Simulation = struct {
                 threads[i] = try Thread.spawn(.{}, updateAgentBatch, .{&contexts[i], config});
             }
             // Wait for all threads to complete
-            for (0..thread_count) |i| {
+            for (0..config.thread_count) |i| {
                 if (i * batch_size < agent_count) {
                     threads[i].join();
                 }
