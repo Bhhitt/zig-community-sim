@@ -102,7 +102,7 @@ pub const Simulation = struct {
 
             if (!is_interacting) {
                 // Update agent, passing the map for terrain interactions
-                agent_update_system.updateAgent(&agents[i], &simulation.map, config);
+                agent_update_system.updateAgent(&agents[i], &simulation.map, config, agents);
 
                 // Map bounds are now checked within the agent update, but just to be safe
                 if (agents[i].x >= @as(f32, @floatFromInt(simulation.map.width))) {
@@ -138,7 +138,7 @@ pub const Simulation = struct {
             var idx: usize = 0;
             for (self.agents.items) |*agent| {
                 if (!self.interaction_system.isAgentInteracting(agent.id)) {
-                    agent_update_system.updateAgent(agent, &self.map, config);
+                    agent_update_system.updateAgent(agent, &self.map, config, self.agents.items);
 
                     // Map bounds are now checked within the agent update, but just to be safe
                     if (agent.x >= @as(f32, @floatFromInt(self.map.width))) {

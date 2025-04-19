@@ -388,6 +388,24 @@ pub fn build(b: *std.Build) void {
     const run_integration_tests = b.addRunArtifact(integration_test_exe);
     integration_tests.dependOn(&run_integration_tests.step);
 
+    // Agent perception test
+    const agent_perception_test_exe = b.addTest(.{
+        .root_source_file = b.path("src/agents/test_agent_perception.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    agent_perception_test_exe.root_module.addImport("agent", agent_module);
+    agent_perception_test_exe.root_module.addImport("map", map_module);
+    agent_perception_test_exe.root_module.addImport("agent_update_system", agent_update_system_module);
+    agent_perception_test_exe.root_module.addImport("config", config_module);
+    agent_perception_test_exe.root_module.addImport("terrain_effects", terrain_effects_module);
+    agent_perception_test_exe.root_module.addImport("agent_type", agent_type_module);
+    agent_perception_test_exe.root_module.addImport("movement_types", movement_types_module);
+    agent_perception_test_exe.root_module.addImport("interaction_type", interaction_type_module);
+    agent_perception_test_exe.root_module.addImport("terrain", terrain_module);
+    const run_agent_perception_tests = b.addRunArtifact(agent_perception_test_exe);
+    agent_tests.dependOn(&run_agent_perception_tests.step);
+
     // Register src/core/simulation.zig as a module named 'simulation' for both main and test builds
     const simulation = b.addModule("simulation", .{ .root_source_file = b.path("src/core/simulation.zig") });
     exe.root_module.addImport("simulation", simulation);

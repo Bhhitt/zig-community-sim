@@ -20,6 +20,7 @@ pub const BenchmarkConfig = struct {
     hunger_threshold: u8 = 80,
     hunger_health_penalty: u8 = 1,
     thread_count: usize = 1,
+    perception_radius: usize = 5, // Default perception radius for agent perception system
 };
 
 // --- Helper for agent stats ---

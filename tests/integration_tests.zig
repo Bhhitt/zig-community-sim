@@ -34,7 +34,7 @@ test "multiple agent types behavior" {
     // Simulate for a significant number of steps
     for (0..50) |_| {
         for (agents.items) |*agent| {
-            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{});
+            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{}, agents.items);
         }
     }
     
@@ -76,24 +76,25 @@ test "agent terrain preferences" {
     test_map.createStripedMap();
     
     // Create agents with specific terrain preferences
-    var miner = Agent.init(1, 20, 20, .Miner, 100, 100);
-    var farmer = Agent.init(2, 20, 20, .Farmer, 100, 100);
+    const miner = Agent.init(1, 20, 20, .Miner, 100, 100);
+    const farmer = Agent.init(2, 20, 20, .Farmer, 100, 100);
+    var agents = [_]Agent{ miner, farmer };
     
     // Simply ensure the agents can update on the terrain without errors
     for (0..50) |_| {
-        agent_update_system.updateAgent(&miner, &test_map.map, config.AppConfig{});
-        agent_update_system.updateAgent(&farmer, &test_map.map, config.AppConfig{});
+        agent_update_system.updateAgent(&agents[0], &test_map.map, config.AppConfig{}, agents[0..]);
+        agent_update_system.updateAgent(&agents[1], &test_map.map, config.AppConfig{}, agents[0..]);
         
         // Verify health and energy remain valid
-        try testing.expect(miner.health > 0 and miner.health <= 100);
-        try testing.expect(miner.energy <= 100);
-        try testing.expect(farmer.health > 0 and farmer.health <= 100);
-        try testing.expect(farmer.energy <= 100);
+        try testing.expect(agents[0].health > 0 and agents[0].health <= 100);
+        try testing.expect(agents[0].energy <= 100);
+        try testing.expect(agents[1].health > 0 and agents[1].health <= 100);
+        try testing.expect(agents[1].energy <= 100);
     }
     
     // Verify agents moved from starting position
-    try testing.expect(miner.x != 20 or miner.y != 20);
-    try testing.expect(farmer.x != 20 or farmer.y != 20);
+    try testing.expect(agents[0].x != 20 or agents[0].y != 20);
+    try testing.expect(agents[1].x != 20 or agents[1].y != 20);
 }
 
 // Test agent endurance and survivability 
@@ -133,7 +134,7 @@ test "agent long-term survival" {
     // Run a lengthy simulation
     for (0..200) |_| {
         for (agents.items, 0..) |*agent, i| {
-            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{});
+            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{}, agents.items);
             try health_history[i].append(agent.health);
         }
     }

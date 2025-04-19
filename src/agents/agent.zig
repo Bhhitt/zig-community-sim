@@ -85,6 +85,12 @@ pub const Agent = struct {
     vy: f32 = 0.0,
     smoothness: f32 = 0.0, // 0 = instant turn, 1 = very smooth/slow turn
     
+    // Perception fields
+    nearest_food_x: ?f32 = null,
+    nearest_food_y: ?f32 = null,
+    nearest_food_dist: ?f32 = null,
+    nearby_agent_count: usize = 0,
+    
     // Agent configuration
     const max_health = 100;
     const max_energy = 100;
@@ -106,6 +112,10 @@ pub const Agent = struct {
             .vx = 0.0,
             .vy = 0.0,
             .smoothness = smoothness,
+            .nearest_food_x = null,
+            .nearest_food_y = null,
+            .nearest_food_dist = null,
+            .nearby_agent_count = 0,
         };
     }
     
