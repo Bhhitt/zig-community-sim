@@ -10,29 +10,48 @@ const MovementTendency = movement_types.MovementTendency;
 const MovementPattern = movement_types.MovementPattern;
 pub const InteractionType = @import("interaction_type").InteractionType;
 
+pub const InteractionState = enum {
+    Initiating, // Moving toward each other
+    Active,     // Actively interacting
+    Finishing,  // Just finished, moving apart
+};
+
 pub const Interaction = struct {
     agent1_id: usize,
     agent2_id: usize,
     type: InteractionType,
     duration: u8, // How many more simulation ticks this interaction will last
+    state: InteractionState, // Current phase of the interaction
     
     pub fn init(agent1: Agent, agent2: Agent, interaction_type: InteractionType) Interaction {
+        // Calculate if agents are already adjacent
+        const dx = if (agent1.x > agent2.x) agent1.x - agent2.x else agent2.x - agent1.x;
+        const dy = if (agent1.y > agent2.y) agent1.y - agent2.y else agent2.y - agent1.y;
+        const manhattan_dist = dx + dy;
+        
+        // If already adjacent, start in Active state, otherwise in Initiating
+        const initial_state: InteractionState = if (manhattan_dist <= 1.0) 
+                                                InteractionState.Active 
+                                                else 
+                                                InteractionState.Initiating;
+        
         return .{
             .agent1_id = agent1.id,
             .agent2_id = agent2.id,
             .type = interaction_type,
-            .duration = 3, // Default duration
+            .duration = 10, // Increased duration to show more interactions at once
+            .state = initial_state,
         };
     }
     
     pub fn toString(self: Interaction) []const u8 {
         // Returns a string representation of the interaction
-        // Format: "Agent1 <-> Agent2 (Type, Duration left)"
+        // Format: "Agent1 <-> Agent2 (Type, State, Duration left)"
         // Note: This is a simplified version. For more details, adjust as needed.
         return std.fmt.allocPrint(
             std.heap.page_allocator,
-            "{d} <-> {d} ({s}, {d} ticks left)",
-            .{ self.agent1_id, self.agent2_id, @tagName(self.type), self.duration }
+            "{d} <-> {d} ({s}, {s}, {d} ticks left)",
+            .{ self.agent1_id, self.agent2_id, @tagName(self.type), @tagName(self.state), self.duration }
         ) catch "<interaction>";
     }
 };
@@ -85,6 +104,10 @@ pub const Agent = struct {
     vy: f32 = 0.0,
     smoothness: f32 = 0.0, // 0 = instant turn, 1 = very smooth/slow turn
     
+    // Interaction target tracking
+    interaction_target_id: ?usize = null, // Target agent ID for moving toward interaction
+    last_interaction_partner: ?usize = null, // ID of the last agent this one interacted with
+    
     // Agent configuration
     const max_health = 100;
     const max_energy = 100;
@@ -121,10 +144,41 @@ pub const Agent = struct {
     }
     
     // Calculate movement direction based on agent type and pattern
-    pub fn calculateMovement(self: *Agent, pattern: MovementPattern) MovementResult {
+    pub fn calculateMovement(self: *Agent, pattern: MovementPattern, all_agents: ?[]Agent) MovementResult {
         const random_value = self.updateSeed();
         var result = MovementResult{};
         
+        // If agent has an interaction target or is in an interaction, handle movement
+        if (all_agents != null) {
+            // Search through all agents for the interaction target
+            for (all_agents.?) |*other| {
+                // Check if agent has an explicit interaction target
+                if (self.interaction_target_id != null and other.id == self.interaction_target_id.?) {
+                    // Move toward explicit target
+                    if (other.x > self.x) {
+                        result.dx = 1.0;
+                    } else if (other.x < self.x) {
+                        result.dx = -1.0;
+                    }
+                    
+                    if (other.y > self.y) {
+                        result.dy = 1.0;
+                    } else if (other.y < self.y) {
+                        result.dy = -1.0;
+                    }
+                    
+                    // Make movement determined rather than random
+                    return result;
+                }
+            }
+            
+            // If we got here and had a target, it wasn't found
+            if (self.interaction_target_id != null) {
+                self.interaction_target_id = null;
+            }
+        }
+        
+        // Normal movement logic when not targeting an interaction
         // Check if agent should move this turn
         if (@mod(random_value, 100) >= pattern.move_chance) {
             return result; // No movement

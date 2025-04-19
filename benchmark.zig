@@ -4,6 +4,8 @@ const Agent = @import("agent").Agent;
 const AgentType = @import("agent_type").AgentType;
 const Map = @import("map").Map;
 const Terrain = @import("terrain").Terrain;
+const Simulation = @import("simulation").Simulation;
+const AppConfig = @import("config").AppConfig;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -16,225 +18,180 @@ pub fn main() !void {
     
     var agent_count: usize = 500;
     var iterations: usize = 1000;
+    var thread_count: usize = 1;
     const map_width: usize = 40;
     const map_height: usize = 20;
     
-    if (args.len > 1) {
-        agent_count = try std.fmt.parseInt(usize, args[1], 10);
-    }
-    if (args.len > 2) {
-        iterations = try std.fmt.parseInt(usize, args[2], 10);
+    // Parse arguments using flags for better usability
+    var i: usize = 1;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+        if (std.mem.eql(u8, arg, "--agents") and i + 1 < args.len) {
+            agent_count = try std.fmt.parseInt(usize, args[i + 1], 10);
+            i += 1;
+        } else if (std.mem.eql(u8, arg, "--iterations") and i + 1 < args.len) {
+            iterations = try std.fmt.parseInt(usize, args[i + 1], 10);
+            i += 1;
+        } else if (std.mem.eql(u8, arg, "--threads") and i + 1 < args.len) {
+            thread_count = try std.fmt.parseInt(usize, args[i + 1], 10);
+            i += 1;
+        }
     }
     
     std.debug.print("\n=== Running Agent Movement Benchmark ===\n", .{});
-    std.debug.print("Map size: {d}x{d}, Agents: {d}, Iterations: {d}\n",
-        .{map_width, map_height, agent_count, iterations});
+    std.debug.print("Map size: {d}x{d}, Agents: {d}, Iterations: {d}, Threads: {d}\n",
+        .{map_width, map_height, agent_count, iterations, thread_count});
     
-    // Create map
-    var map = try Map.init(allocator, map_width, map_height);
-    defer map.deinit();
+    // Create simulation config
+    var config = AppConfig{
+        .map_width = map_width,
+        .map_height = map_height,
+        .thread_count = thread_count,
+        .running_delay_ms = 0, // No delay for benchmarks
+    };
     
-    // Initialize map with terrain
-    try initializeMap(&map);
+    // Create simulation
+    var sim = try Simulation.init(allocator, map_width, map_height, config);
+    defer sim.deinit();
     
     // Create agents
-    var agents = std.ArrayList(Agent).init(allocator);
-    defer agents.deinit();
-    
-    try createAgents(&agents, agent_count, map.width, map.height);
+    try createAgentsInSimulation(&sim, agent_count);
     
     // Run the simulation and measure performance
     const start_time = std.time.milliTimestamp();
     
-    // Use multi-threaded approach if possible
-    const cpu_count = std.Thread.getCpuCount() catch 1;
-    const thread_count = if (cpu_count > 10) 10 else cpu_count;
-    if (thread_count > 1) {
-        try runParallelSimulation(&agents, &map, iterations, thread_count);
-    } else {
-        try runSimulation(&agents, &map, iterations);
+    // Run the simulation for specified iterations
+    for (0..iterations) |iter| {
+        try sim.update(allocator, config);
+        
+        if (iter % 100 == 0 and iter > 0) {
+            std.debug.print("Completed {d} iterations...\r", .{iter});
+        }
     }
     
     const end_time = std.time.milliTimestamp();
     const duration_ms = end_time - start_time;
     
     // Print performance metrics
-    std.debug.print("\nPerformance Results:\n", .{});
+    std.debug.print("\nPerformance Results with {d} threads:\n", .{thread_count});
     std.debug.print("- Total time: {d}ms\n", .{duration_ms});
     std.debug.print("- Average time per iteration: {d:.3}ms\n", 
         .{@as(f64, @floatFromInt(duration_ms)) / @as(f64, @floatFromInt(iterations))});
     std.debug.print("- Average time per agent per iteration: {d:.6}ms\n", 
         .{@as(f64, @floatFromInt(duration_ms)) / 
-          (@as(f64, @floatFromInt(iterations)) * @as(f64, @floatFromInt(agents.items.len)))});
+          (@as(f64, @floatFromInt(iterations)) * @as(f64, @floatFromInt(sim.agents.items.len)))});
     std.debug.print("- Updates per second: {d:.1}\n", 
-        .{@as(f64, @floatFromInt(agents.items.len)) * @as(f64, @floatFromInt(iterations)) * 1000.0 / 
+        .{@as(f64, @floatFromInt(sim.agents.items.len)) * @as(f64, @floatFromInt(iterations)) * 1000.0 / 
           @as(f64, @floatFromInt(duration_ms))});
     
     // Check agent health and energy distribution
     var health_sum: usize = 0;
     var energy_sum: usize = 0;
     
-    for (agents.items) |agent| {
+    for (sim.agents.items) |agent| {
         health_sum += agent.health;
         energy_sum += agent.energy;
     }
     
-    const avg_health = @as(f64, @floatFromInt(health_sum)) / @as(f64, @floatFromInt(agents.items.len));
-    const avg_energy = @as(f64, @floatFromInt(energy_sum)) / @as(f64, @floatFromInt(agents.items.len));
+    const avg_health = @as(f64, @floatFromInt(health_sum)) / @as(f64, @floatFromInt(sim.agents.items.len));
+    const avg_energy = @as(f64, @floatFromInt(energy_sum)) / @as(f64, @floatFromInt(sim.agents.items.len));
     
     std.debug.print("\nAgent Status After Simulation:\n", .{});
     std.debug.print("- Average health: {d:.2}\n", .{avg_health});
     std.debug.print("- Average energy: {d:.2}\n", .{avg_energy});
+    std.debug.print("- Interactions: {d}\n", .{sim.interaction_system.getInteractions().len});
     std.debug.print("=== Benchmark Complete ===\n\n", .{});
-}
-
-// Single-threaded simulation
-fn runSimulation(agents: *std.ArrayList(Agent), map: *Map, iterations: usize) !void {
-    for (0..iterations) |iter| {
-        for (agents.items) |*agent| {
-            agent.update(map);
-        }
-        
-        if (iter % 100 == 0 and iter > 0) {
-            std.debug.print("Completed {d} iterations...\r", .{iter});
-        }
-    }
-}
-
-// Worker context for thread
-const WorkerContext = struct {
-    agents: []Agent,
-    map: *Map,
-};
-
-// Thread worker function
-fn updateAgentBatch(context: *WorkerContext) void {
-    for (context.agents) |*agent| {
-        agent.update(context.map);
-    }
-}
-
-// Multi-threaded simulation
-fn runParallelSimulation(agents: *std.ArrayList(Agent), map: *Map, iterations: usize, thread_count: usize) !void {
-    var threads = try std.heap.page_allocator.alloc(std.Thread, thread_count);
-    defer std.heap.page_allocator.free(threads);
     
-    const agent_count = agents.items.len;
-    const agents_per_thread = (agent_count + thread_count - 1) / thread_count;
-    var contexts = try std.heap.page_allocator.alloc(WorkerContext, thread_count);
-    defer std.heap.page_allocator.free(contexts);
-    
-    for (0..iterations) |iter| {
-        // Configure contexts for this iteration
-        for (0..thread_count) |t| {
-            const start_idx = t * agents_per_thread;
-            const end_idx = if (start_idx + agents_per_thread > agent_count) agent_count else start_idx + agents_per_thread;
-            
-            // Skip empty ranges
-            if (start_idx >= agent_count) continue;
-            
-            contexts[t] = .{
-                .agents = agents.items[start_idx..end_idx],
-                .map = map,
-            };
-            
-            // Create and start thread
-            threads[t] = try std.Thread.spawn(.{}, updateAgentBatch, .{&contexts[t]});
-        }
-        
-        // Wait for all threads
-        for (0..thread_count) |t| {
-            if (t * agents_per_thread < agent_count) {
-                threads[t].join();
-            }
-        }
-        
-        if (iter % 100 == 0 and iter > 0) {
-            std.debug.print("Completed {d} iterations...\r", .{iter});
-        }
-    }
+    // Save results to a file
+    try saveResultsToFile(
+        allocator, 
+        sim, 
+        duration_ms, 
+        iterations, 
+        thread_count, 
+        agent_count
+    );
 }
 
-// Create agents of different types
-fn createAgents(
-    agents: *std.ArrayList(Agent),
-    count: usize, 
-    width: usize, 
-    height: usize
+// Create agents in the simulation
+fn createAgentsInSimulation(
+    sim: *Simulation,
+    count: usize
 ) !void {
     const agent_types = [_]AgentType{
         .Settler, .Explorer, .Builder, .Farmer, .Miner, .Scout
     };
     
-    // Use crypto.random directly
-    
     for (0..count) |i| {
-        const x = random.uintLessThan(usize, width);
-        const y = random.uintLessThan(usize, height);
+        const x = random.uintLessThan(usize, sim.map.width);
+        const y = random.uintLessThan(usize, sim.map.height);
         const agent_type = agent_types[random.uintLessThan(usize, agent_types.len)];
-        const health = 100;
-        const energy = 100;
         
-        try agents.append(Agent.init(i, x, y, agent_type, health, energy));
+        try sim.spawnAgent(.{
+            .x = x,
+            .y = y,
+            .type = agent_type,
+            .health = 100,
+            .energy = 100,
+        });
     }
 }
 
-// Initialize the map with varied terrain
-fn initializeMap(map: *Map) !void {
-    const width = map.width;
-    const height = map.height;
+// Save benchmark results to a CSV file
+fn saveResultsToFile(
+    allocator: std.mem.Allocator,
+    sim: Simulation,
+    duration_ms: i64,
+    iterations: usize,
+    thread_count: usize,
+    agent_count: usize,
+) !void {
+    const filename = try std.fmt.allocPrint(
+        allocator, 
+        "benchmark_results_{d}_{d}_{d}.csv", 
+        .{agent_count, iterations, thread_count}
+    );
+    defer allocator.free(filename);
     
-    // Default is Empty
+    var file = try std.fs.cwd().createFile(filename, .{});
+    defer file.close();
     
-    // Add some Grass (in roughly circular pattern in the middle left)
-    const grass_center_x = width / 4;
-    const grass_center_y = height / 2;
-    const grass_radius = height / 3;
+    const writer = file.writer();
     
-    // Add some Forest (in the upper right)
-    const forest_center_x = width * 3 / 4;
-    const forest_center_y = height / 3;
-    const forest_radius = height / 4;
+    // Write CSV header
+    try writer.writeAll("thread_count,agent_count,iterations,duration_ms,ms_per_iteration,ms_per_agent_iteration,updates_per_second,avg_health,avg_energy\n");
     
-    // Add some Mountains (in the lower right)
-    const mountain_center_x = width * 3 / 4;
-    const mountain_center_y = height * 2 / 3;
-    const mountain_radius = height / 5;
+    // Calculate metrics
+    const ms_per_iteration = @as(f64, @floatFromInt(duration_ms)) / @as(f64, @floatFromInt(iterations));
+    const ms_per_agent_iteration = @as(f64, @floatFromInt(duration_ms)) / (@as(f64, @floatFromInt(iterations)) * @as(f64, @floatFromInt(sim.agents.items.len)));
+    const updates_per_second = @as(f64, @floatFromInt(sim.agents.items.len)) * @as(f64, @floatFromInt(iterations)) * 1000.0 / @as(f64, @floatFromInt(duration_ms));
     
-    // Add some Water (along the top)
-    const water_y_level = height / 8;
+    // Calculate agent stats
+    var health_sum: usize = 0;
+    var energy_sum: usize = 0;
     
-    for (0..width) |x| {
-        for (0..height) |y| {
-            // Water along the top
-            if (y < water_y_level) {
-                map.setTerrain(x, y, .Water);
-                continue;
-            }
-            
-            // Grass in circular pattern
-            const grass_dist_sq = (x -% grass_center_x) * (x -% grass_center_x) + 
-                                  (y -% grass_center_y) * (y -% grass_center_y);
-            if (grass_dist_sq < grass_radius * grass_radius) {
-                map.setTerrain(x, y, .Grass);
-                continue;
-            }
-            
-            // Forest in circular pattern
-            const forest_dist_sq = (x -% forest_center_x) * (x -% forest_center_x) + 
-                                   (y -% forest_center_y) * (y -% forest_center_y);
-            if (forest_dist_sq < forest_radius * forest_radius) {
-                map.setTerrain(x, y, .Forest);
-                continue;
-            }
-            
-            // Mountains in circular pattern
-            const mountain_dist_sq = (x -% mountain_center_x) * (x -% mountain_center_x) + 
-                                     (y -% mountain_center_y) * (y -% mountain_center_y);
-            if (mountain_dist_sq < mountain_radius * mountain_radius) {
-                map.setTerrain(x, y, .Mountain);
-                continue;
-            }
-        }
+    for (sim.agents.items) |agent| {
+        health_sum += agent.health;
+        energy_sum += agent.energy;
     }
+    
+    const avg_health = @as(f64, @floatFromInt(health_sum)) / @as(f64, @floatFromInt(sim.agents.items.len));
+    const avg_energy = @as(f64, @floatFromInt(energy_sum)) / @as(f64, @floatFromInt(sim.agents.items.len));
+    
+    // Write results row
+    try writer.print("{d},{d},{d},{d},{d:.3},{d:.6},{d:.1},{d:.2},{d:.2}\n",
+        .{
+            thread_count,
+            agent_count,
+            iterations,
+            duration_ms,
+            ms_per_iteration,
+            ms_per_agent_iteration,
+            updates_per_second,
+            avg_health,
+            avg_energy,
+        }
+    );
 }
+
+// The terrain generation is now handled by TerrainGenerator in the simulation initialization

@@ -15,8 +15,9 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
     const movement_pattern = agent.type.getMovementPattern();
     
     // --- Smooth continuous movement ---
-    // Calculate target direction as before
-    const movement = agent.calculateMovement(movement_pattern);
+    // Calculate target direction, now passing all agents for interaction targeting
+    const all_agents = if (agent.interaction_target_id != null) map.simulation_agents else null;
+    const movement = agent.calculateMovement(movement_pattern, all_agents);
     const target_dx = movement.dx * agent.speed;
     const target_dy = movement.dy * agent.speed;
     // If agent.smoothness > 0, interpolate velocity

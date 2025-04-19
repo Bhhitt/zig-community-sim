@@ -18,6 +18,8 @@ pub const Map = struct {
     food_grid: []u8,
     /// The allocator used to manage map resources.
     allocator: Allocator,
+    /// Reference to all agents for interaction targeting
+    simulation_agents: ?[]Agent = null,
 
     /// Initializes a new map with the given dimensions, allocator, and configuration.
     ///
@@ -54,6 +56,7 @@ pub const Map = struct {
     /// Retrieves the terrain type at the specified x, y coordinates.
     pub fn getTerrainAt(self: *const Map, x: usize, y: usize) Terrain {
         if (x >= self.width or y >= self.height) {
+            // std.debug.print("Terrain access out of bounds: ({d}, {d})\n", .{x, y});
             return .Empty; // Default for out-of-bounds
         }
         return self.grid[y * self.width + x];

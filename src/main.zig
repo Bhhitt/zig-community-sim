@@ -87,6 +87,37 @@ pub fn main() !void {
     try app.simulation.spawnAgent(.{ .x = 10, .y = 15, .type = .Scout, .health = 100, .energy = 100 });
     try app.simulation.spawnAgent(.{ .x = 20, .y = 12, .type = .Miner, .health = 105, .energy = 95 });
     
+    // Add more agents that are farther apart to test the new interaction seeking
+    try app.simulation.spawnAgent(.{ .x = 5, .y = 25, .type = .Settler, .health = 100, .energy = 100 });
+    try app.simulation.spawnAgent(.{ .x = 10, .y = 25, .type = .Farmer, .health = 100, .energy = 100 });
+    try app.simulation.spawnAgent(.{ .x = 20, .y = 30, .type = .Scout, .health = 90, .energy = 110 });
+    try app.simulation.spawnAgent(.{ .x = 30, .y = 25, .type = .Miner, .health = 105, .energy = 95 });
+    try app.simulation.spawnAgent(.{ .x = 35, .y = 40, .type = .Builder, .health = 110, .energy = 90 });
+    try app.simulation.spawnAgent(.{ .x = 40, .y = 35, .type = .Explorer, .health = 85, .energy = 115 });
+    
+    // Add even more agents to increase interaction opportunities
+    var i: usize = 0;
+    while (i < 20) : (i += 1) {
+        const x = @mod(i * 13, config.map_width - 5) + 2;
+        const y = @mod(i * 7, config.map_height - 5) + 2;
+        const agent_type = switch (@mod(i, 6)) {
+            0 => AgentType.Settler,
+            1 => AgentType.Explorer,
+            2 => AgentType.Builder,
+            3 => AgentType.Farmer,
+            4 => AgentType.Miner,
+            5 => AgentType.Scout,
+            else => AgentType.Settler,
+        };
+        try app.simulation.spawnAgent(.{
+            .x = x,
+            .y = y,
+            .type = agent_type,
+            .health = 100,
+            .energy = 100,
+        });
+    }
+    
     // Run the application
     try app.run();
 }
