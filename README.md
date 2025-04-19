@@ -12,6 +12,7 @@ A modular, high-performance agent-based simulation written in Zig. Agents with u
 - **Text interface:** Fast, headless mode for benchmarks and automated testing
 - **Benchmarking:** Built-in stress tests and performance metrics
 - **Extensible architecture:** Easy to add new agent types, terrain, or behaviors
+- **Smooth subcell movement:** Agents are rendered and updated with floating-point positions for continuous, fluid motion (no more snapping between grid cells)
 
 ## Getting Started
 

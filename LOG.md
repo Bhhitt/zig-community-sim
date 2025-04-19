@@ -6,6 +6,12 @@
 - Food is now visualized as yellow cells in the GUI
 - Removed debug/"cringe" output from the renderer for a clean terminal
 
+## 2025-04-18 — Smooth Subcell Agent Movement
+- Agents now move and render with true floating-point positions, allowing for smooth, sub-cell movement across the map.
+- Rendering logic in `sdl_renderer.zig` updated to use floating-point coordinates for agent positions (no more box-to-box snapping).
+- All agent movement, collision, and boundary logic updated for floating-point precision.
+- Visual experience is now much more fluid and natural.
+
 ## 2025-04-18
 - Agent positions are now floating-point for smooth, sub-cell movement.
 - Increased default agent speed to 0.7 cells/tick for more dynamic simulation.
