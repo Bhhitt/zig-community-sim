@@ -403,8 +403,27 @@ pub fn build(b: *std.Build) void {
     agent_perception_test_exe.root_module.addImport("movement_types", movement_types_module);
     agent_perception_test_exe.root_module.addImport("interaction_type", interaction_type_module);
     agent_perception_test_exe.root_module.addImport("terrain", terrain_module);
+    agent_perception_test_exe.root_module.addImport("interactions", interactions_module);
+    agent_perception_test_exe.root_module.addImport("simulation", simulation_module);
     const run_agent_perception_tests = b.addRunArtifact(agent_perception_test_exe);
     agent_tests.dependOn(&run_agent_perception_tests.step);
+
+    // Add agent_hunger_tests.zig to test suite
+    const agent_hunger_tests = b.addTest(.{
+        .root_source_file = b.path("tests/agent_hunger_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    agent_hunger_tests.root_module.addImport("agent", agent_module);
+    agent_hunger_tests.root_module.addImport("map", map_module);
+    agent_hunger_tests.root_module.addImport("agent_update_system", agent_update_system_module);
+    agent_hunger_tests.root_module.addImport("config", config_module);
+    agent_hunger_tests.root_module.addImport("terrain_effects", terrain_effects_module);
+    agent_hunger_tests.root_module.addImport("agent_type", agent_type_module);
+    agent_hunger_tests.root_module.addImport("movement_types", movement_types_module);
+    agent_hunger_tests.root_module.addImport("interaction_type", interaction_type_module);
+    agent_hunger_tests.root_module.addImport("terrain", terrain_module);
+    test_step.dependOn(&agent_hunger_tests.step);
 
     // Register src/core/simulation.zig as a module named 'simulation' for both main and test builds
     const simulation = b.addModule("simulation", .{ .root_source_file = b.path("src/core/simulation.zig") });

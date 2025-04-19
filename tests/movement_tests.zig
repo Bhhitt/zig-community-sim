@@ -52,7 +52,7 @@ test "agent basic movement" {
     for (0..10) |_| {
         // Calculate intended movement before update
         const movement_pattern = explorer.type.getMovementPattern();
-        const movement = explorer.calculateMovement(movement_pattern);
+        const movement = explorer.calculateMovement(movement_pattern, config.AppConfig{});
         if (movement.dx != 0 or movement.dy != 0) {
             movement_attempted = true;
         }

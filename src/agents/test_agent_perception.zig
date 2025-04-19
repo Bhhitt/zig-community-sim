@@ -34,6 +34,58 @@ pub fn test_perception() !void {
     try std.testing.expect(agents[0].nearby_agent_count == 1);
 }
 
+// Additional edge case tests for perception
+
+test "perception: no food in range sets nearest_food to null" {
+    const allocator = std.testing.allocator;
+    var map = try Map.init(allocator, 10, 10, .{ .food_spawn_chance = 0 });
+    defer map.deinit();
+    var agents = [_]Agent{
+        Agent.init(0, 2, 2, .Settler, 100, 100),
+    };
+    agent_update_system.updateAgentPerception(&agents[0], agents[0..], &map, 3);
+    try std.testing.expect(agents[0].nearest_food_x == null and agents[0].nearest_food_y == null);
+    try std.testing.expect(agents[0].nearest_food_dist == null);
+}
+
+test "perception: multiple foods, nearest is chosen" {
+    const allocator = std.testing.allocator;
+    var map = try Map.init(allocator, 10, 10, .{ .food_spawn_chance = 0 });
+    defer map.deinit();
+    map.setFoodAt(5, 5, 1); // farther
+    map.setFoodAt(3, 2, 1); // nearer
+    var agents = [_]Agent{
+        Agent.init(0, 2, 2, .Settler, 100, 100),
+    };
+    agent_update_system.updateAgentPerception(&agents[0], agents[0..], &map, 5);
+    try std.testing.expect(agents[0].nearest_food_x.? == 3 and agents[0].nearest_food_y.? == 2);
+}
+
+test "perception: food at edge of radius is included" {
+    const allocator = std.testing.allocator;
+    var map = try Map.init(allocator, 10, 10, .{ .food_spawn_chance = 0 });
+    defer map.deinit();
+    // Place food at distance exactly 3 from (2,2)
+    map.setFoodAt(5, 2, 1); // dx=3, dy=0
+    var agents = [_]Agent{
+        Agent.init(0, 2, 2, .Settler, 100, 100),
+    };
+    agent_update_system.updateAgentPerception(&agents[0], agents[0..], &map, 3);
+    try std.testing.expect(agents[0].nearest_food_x.? == 5 and agents[0].nearest_food_y.? == 2);
+}
+
+test "perception: agent just outside radius is not counted" {
+    const allocator = std.testing.allocator;
+    var map = try Map.init(allocator, 10, 10, .{ .food_spawn_chance = 0 });
+    defer map.deinit();
+    var agents = [_]Agent{
+        Agent.init(0, 2, 2, .Settler, 100, 100), // subject
+        Agent.init(1, 6, 2, .Settler, 100, 100), // exactly 4 away (outside radius 3)
+    };
+    agent_update_system.updateAgentPerception(&agents[0], agents[0..], &map, 3);
+    try std.testing.expect(agents[0].nearby_agent_count == 0);
+}
+
 test "agent perception finds nearest food and counts nearby agents" {
     try test_perception();
 }
