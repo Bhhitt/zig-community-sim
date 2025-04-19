@@ -46,14 +46,17 @@ test "agent basic movement" {
     // Update the agent several times
     var moved = false;
     var movement_attempted = false;
+    var agents = try testing.allocator.alloc(Agent, 1);
+    defer testing.allocator.free(agents);
+    agents[0] = explorer;
     for (0..10) |_| {
         // Calculate intended movement before update
         const movement_pattern = explorer.type.getMovementPattern();
-        const movement = explorer.calculateMovement(movement_pattern);
+        const movement = explorer.calculateMovement(movement_pattern, config.AppConfig{});
         if (movement.dx != 0 or movement.dy != 0) {
             movement_attempted = true;
         }
-        agent_update_system.updateAgent(&explorer, &map, config.AppConfig{});
+        agent_update_system.updateAgent(&explorer, &map, config.AppConfig{}, agents);
         
         // Check if agent moved at least once
         if (explorer.x != original_x or explorer.y != original_y) {
@@ -80,8 +83,11 @@ test "settler tendency to stay" {
     
     // We can't really test probabilistic behavior reliably
     // So we'll just ensure the agent updates without crashing
+    var agents = try testing.allocator.alloc(Agent, 1);
+    defer testing.allocator.free(agents);
+    agents[0] = settler;
     for (0..20) |_| {
-        agent_update_system.updateAgent(&settler, &map, config.AppConfig{});
+        agent_update_system.updateAgent(&settler, &map, config.AppConfig{}, agents);
         // Just check health and energy remain valid
         try testing.expect(settler.health > 0 and settler.health <= 100);
         try testing.expect(settler.energy <= 100);
@@ -101,12 +107,16 @@ test "terrain effects on movement cost" {
     var farmer = Agent.init(4, 5, 5, .Farmer, 100, 100);
     
     // Update both agents multiple times
+    var agents = try testing.allocator.alloc(Agent, 2);
+    defer testing.allocator.free(agents);
+    agents[0] = miner;
+    agents[1] = farmer;
     for (0..10) |_| {
         const miner_energy_before = miner.energy;
         const farmer_energy_before = farmer.energy;
         
-        agent_update_system.updateAgent(&miner, &map, config.AppConfig{});
-        agent_update_system.updateAgent(&farmer, &map, config.AppConfig{});
+        agent_update_system.updateAgent(&miner, &map, config.AppConfig{}, agents);
+        agent_update_system.updateAgent(&farmer, &map, config.AppConfig{}, agents);
         
         // Both should lose energy when moving, but miner should get energy boost on mountains
         if (miner.energy > miner_energy_before) {
@@ -129,8 +139,11 @@ test "agent movement boundaries" {
     var agent = Agent.init(5, 1, 1, .Explorer, 100, 100);
     
     // Force many updates to test boundary handling
+    var agents = try testing.allocator.alloc(Agent, 1);
+    defer testing.allocator.free(agents);
+    agents[0] = agent;
     for (0..20) |_| {
-        agent_update_system.updateAgent(&agent, &map, config.AppConfig{});
+        agent_update_system.updateAgent(&agent, &map, config.AppConfig{}, agents);
         
         // Agent should never go out of bounds
         try testing.expectEqual(true, agent.x < @as(f32, @floatFromInt(map.width)));
@@ -146,8 +159,11 @@ test "explorer movement and energy consumption" {
     const original_y = explorer.y;
     var moved = false;
     const initial_energy = explorer.energy;
+    var agents = try testing.allocator.alloc(Agent, 1);
+    defer testing.allocator.free(agents);
+    agents[0] = explorer;
     for (0..10) |_| {
-        agent_update_system.updateAgent(&explorer, &map, config.AppConfig{});
+        agent_update_system.updateAgent(&explorer, &map, config.AppConfig{}, agents);
         if (explorer.x != original_x or explorer.y != original_y) {
             moved = true;
         }
@@ -163,8 +179,11 @@ test "explorer hunger increases when not eating" {
     const initial_hunger = explorer.hunger;
     // Ensure no food at agent's starting position
     map.setFoodAt(@intFromFloat(explorer.x), @intFromFloat(explorer.y), 0);
+    var agents = try testing.allocator.alloc(Agent, 1);
+    defer testing.allocator.free(agents);
+    agents[0] = explorer;
     for (0..10) |_| {
-        agent_update_system.updateAgent(&explorer, &map, config.AppConfig{});
+        agent_update_system.updateAgent(&explorer, &map, config.AppConfig{}, agents);
     }
     try testing.expect(explorer.hunger > initial_hunger);
 }

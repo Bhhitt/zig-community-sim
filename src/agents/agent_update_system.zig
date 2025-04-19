@@ -8,16 +8,69 @@ const max_energy = 100;
 const max_health = 100;
 const health_regen = 1;
 
-pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
+// Updates the perception fields for a single agent
+pub fn updateAgentPerception(agent: *Agent, agents: []const Agent, map: *const Map, perception_radius: usize) void {
+    // Find nearest food
+    var min_food_dist: f32 = 1e9;
+    var nearest_food_x: ?f32 = null;
+    var nearest_food_y: ?f32 = null;
+    var found_food = false;
+    const ax = @as(i32, @intFromFloat(agent.x));
+    const ay = @as(i32, @intFromFloat(agent.y));
+    const pr = @as(i32, @intCast(perception_radius));
+    var dy: i32 = -pr;
+    while (dy <= pr) : (dy += 1) {
+        var dx: i32 = -pr;
+        while (dx <= pr) : (dx += 1) {
+            const nx = ax + dx;
+            const ny = ay + dy;
+            if (nx < 0 or ny < 0 or nx >= map.width or ny >= map.height) continue;
+            if (map.getFoodAt(@intCast(nx), @intCast(ny)) > 0) {
+                const dist = @sqrt(@as(f32, @floatFromInt(dx * dx + dy * dy)));
+                if (dist < min_food_dist) {
+                    min_food_dist = dist;
+                    nearest_food_x = @as(f32, @floatFromInt(nx));
+                    nearest_food_y = @as(f32, @floatFromInt(ny));
+                    found_food = true;
+                }
+            }
+        }
+    }
+    if (found_food) {
+        agent.nearest_food_x = nearest_food_x;
+        agent.nearest_food_y = nearest_food_y;
+        agent.nearest_food_dist = min_food_dist;
+    } else {
+        agent.nearest_food_x = null;
+        agent.nearest_food_y = null;
+        agent.nearest_food_dist = null;
+    }
+
+    // Count nearby agents (excluding self)
+    var count: usize = 0;
+    for (agents) |other| {
+        if (other.id == agent.id) continue;
+        const dx = other.x - agent.x;
+        const dy_agent = other.y - agent.y;
+        if (@sqrt(dx*dx + dy_agent*dy_agent) <= @as(f32, @floatFromInt(perception_radius))) {
+            count += 1;
+        }
+    }
+    agent.nearby_agent_count = count;
+}
+
+pub fn updateAgent(agent: *Agent, map: *Map, config: anytype, agents: []const Agent) void {
+    // Perception: update what this agent can "see"
+    updateAgentPerception(agent, agents, map, config.perception_radius);
+
     // Debug: Print position before update
     // std.debug.print("[AgentUpdateSystem] Before: id={} type={s} pos=({}, {})\n", .{ agent.id, @tagName(agent.type), agent.x, agent.y });
     // Get movement pattern for this agent type
     const movement_pattern = agent.type.getMovementPattern();
     
     // --- Smooth continuous movement ---
-    // Calculate target direction, now passing all agents for interaction targeting
-    const all_agents = if (agent.interaction_target_id != null) map.simulation_agents else null;
-    const movement = agent.calculateMovement(movement_pattern, all_agents);
+    // Calculate target direction as before
+    const movement = agent.calculateMovement(movement_pattern, config);
     const target_dx = movement.dx * agent.speed;
     const target_dy = movement.dy * agent.speed;
     // If agent.smoothness > 0, interpolate velocity

@@ -10,48 +10,29 @@ const MovementTendency = movement_types.MovementTendency;
 const MovementPattern = movement_types.MovementPattern;
 pub const InteractionType = @import("interaction_type").InteractionType;
 
-pub const InteractionState = enum {
-    Initiating, // Moving toward each other
-    Active,     // Actively interacting
-    Finishing,  // Just finished, moving apart
-};
-
 pub const Interaction = struct {
     agent1_id: usize,
     agent2_id: usize,
     type: InteractionType,
     duration: u8, // How many more simulation ticks this interaction will last
-    state: InteractionState, // Current phase of the interaction
     
     pub fn init(agent1: Agent, agent2: Agent, interaction_type: InteractionType) Interaction {
-        // Calculate if agents are already adjacent
-        const dx = if (agent1.x > agent2.x) agent1.x - agent2.x else agent2.x - agent1.x;
-        const dy = if (agent1.y > agent2.y) agent1.y - agent2.y else agent2.y - agent1.y;
-        const manhattan_dist = dx + dy;
-        
-        // If already adjacent, start in Active state, otherwise in Initiating
-        const initial_state: InteractionState = if (manhattan_dist <= 1.0) 
-                                                InteractionState.Active 
-                                                else 
-                                                InteractionState.Initiating;
-        
         return .{
             .agent1_id = agent1.id,
             .agent2_id = agent2.id,
             .type = interaction_type,
-            .duration = 10, // Increased duration to show more interactions at once
-            .state = initial_state,
+            .duration = 3, // Default duration
         };
     }
     
     pub fn toString(self: Interaction) []const u8 {
         // Returns a string representation of the interaction
-        // Format: "Agent1 <-> Agent2 (Type, State, Duration left)"
+        // Format: "Agent1 <-> Agent2 (Type, Duration left)"
         // Note: This is a simplified version. For more details, adjust as needed.
         return std.fmt.allocPrint(
             std.heap.page_allocator,
-            "{d} <-> {d} ({s}, {s}, {d} ticks left)",
-            .{ self.agent1_id, self.agent2_id, @tagName(self.type), @tagName(self.state), self.duration }
+            "{d} <-> {d} ({s}, {d} ticks left)",
+            .{ self.agent1_id, self.agent2_id, @tagName(self.type), self.duration }
         ) catch "<interaction>";
     }
 };
@@ -104,22 +85,24 @@ pub const Agent = struct {
     vy: f32 = 0.0,
     smoothness: f32 = 0.0, // 0 = instant turn, 1 = very smooth/slow turn
     
-    // Interaction target tracking
-    interaction_target_id: ?usize = null, // Target agent ID for moving toward interaction
-    last_interaction_partner: ?usize = null, // ID of the last agent this one interacted with
+    // Perception fields
+    nearest_food_x: ?f32 = null,
+    nearest_food_y: ?f32 = null,
+    nearest_food_dist: ?f32 = null,
+    nearby_agent_count: usize = 0,
     
     // Agent configuration
     const max_health = 100;
     const max_energy = 100;
     const health_regen = 1; // Default health regeneration
     
-    pub fn init(id: usize, x: usize, y: usize, agent_type: AgentType, health: u8, energy: u8) Agent {
+    pub fn init(id: usize, x: f32, y: f32, agent_type: AgentType, health: u8, energy: u8) Agent {
         // Use smoothness from agent type's movement pattern
         const smoothness = agent_type.getMovementPattern().smoothness;
         return .{
             .id = id,
-            .x = @as(f32, @floatFromInt(x)),
-            .y = @as(f32, @floatFromInt(y)),
+            .x = x,
+            .y = y,
             .type = agent_type,
             .health = health,
             .energy = energy,
@@ -129,6 +112,10 @@ pub const Agent = struct {
             .vx = 0.0,
             .vy = 0.0,
             .smoothness = smoothness,
+            .nearest_food_x = null,
+            .nearest_food_y = null,
+            .nearest_food_dist = null,
+            .nearby_agent_count = 0,
         };
     }
     
@@ -144,41 +131,31 @@ pub const Agent = struct {
     }
     
     // Calculate movement direction based on agent type and pattern
-    pub fn calculateMovement(self: *Agent, pattern: MovementPattern, all_agents: ?[]Agent) MovementResult {
+    pub fn calculateMovement(self: *Agent, pattern: MovementPattern, config: anytype) MovementResult {
         const random_value = self.updateSeed();
         var result = MovementResult{};
         
-        // If agent has an interaction target or is in an interaction, handle movement
-        if (all_agents != null) {
-            // Search through all agents for the interaction target
-            for (all_agents.?) |*other| {
-                // Check if agent has an explicit interaction target
-                if (self.interaction_target_id != null and other.id == self.interaction_target_id.?) {
-                    // Move toward explicit target
-                    if (other.x > self.x) {
-                        result.dx = 1.0;
-                    } else if (other.x < self.x) {
-                        result.dx = -1.0;
-                    }
-                    
-                    if (other.y > self.y) {
-                        result.dy = 1.0;
-                    } else if (other.y < self.y) {
-                        result.dy = -1.0;
-                    }
-                    
-                    // Make movement determined rather than random
-                    return result;
-                }
-            }
-            
-            // If we got here and had a target, it wasn't found
-            if (self.interaction_target_id != null) {
-                self.interaction_target_id = null;
+        // Configurable hunger-driven food seeking
+        if (self.hunger > 50 and self.nearest_food_x != null and self.nearest_food_y != null) {
+            // Calculate aggressiveness as a function of hunger and config
+            const base = config.food_seek_aggressiveness_base;
+            const coeff = config.food_seek_aggressiveness_hunger_coeff;
+            const hunger_f32: f32 = @floatFromInt(self.hunger);
+            const prob = base + coeff * hunger_f32;
+            const rand_mod: u32 = @truncate(random_value % 1000);
+            const rand_f32: f32 = @floatFromInt(rand_mod);
+            if ((rand_f32 / 1000.0) < prob) {
+                // SAFETY: Both nearest_food_x and nearest_food_y are checked for null above, so safe to unwrap
+                const nfx = self.nearest_food_x.?;
+                const nfy = self.nearest_food_y.?;
+                const dx = nfx - self.x;
+                const dy = nfy - self.y;
+                result.dx = if (dx > 0.1) 1.0 else if (dx < -0.1) -1.0 else 0.0;
+                result.dy = if (dy > 0.1) 1.0 else if (dy < -0.1) -1.0 else 0.0;
+                return result;
             }
         }
         
-        // Normal movement logic when not targeting an interaction
         // Check if agent should move this turn
         if (@mod(random_value, 100) >= pattern.move_chance) {
             return result; // No movement
@@ -187,8 +164,8 @@ pub const Agent = struct {
         // Pattern-based movement (used by Builder)
         if (pattern.pattern_based) {
             const pattern_val = @mod(random_value, 8);
-            const x_int: i32 = @intFromFloat(self.x);
-            const y_int: i32 = @intFromFloat(self.y);
+            const x_int = @as(i32, @intFromFloat(self.x));
+            const y_int = @as(i32, @intFromFloat(self.y));
             if (pattern_val < 2) {
                 // Move in small square pattern
                 if (@mod(x_int + y_int, 2) == 0) {
@@ -233,17 +210,19 @@ pub const Agent = struct {
         if (pattern.home_seeking and @mod(random_value, 100) < pattern.home_seeking_chance) {
             // Determine "home" based on ID
             const center_x = @mod(self.id * 7, 10);
+            const center_x_f32: f32 = @floatFromInt(center_x);
             const center_y = @mod(self.id * 13, 10);
+            const center_y_f32: f32 = @floatFromInt(center_y);
             
-            if (self.x > @as(f32, @floatFromInt(center_x)) and @mod(random_value, 2) == 0) {
+            if (self.x > center_x_f32 and @mod(random_value, 2) == 0) {
                 result.dx = -1.0;
-            } else if (self.x < @as(f32, @floatFromInt(center_x)) and @mod(random_value, 2) == 0) {
+            } else if (self.x < center_x_f32 and @mod(random_value, 2) == 0) {
                 result.dx = 1.0;
             }
             
-            if (self.y > @as(f32, @floatFromInt(center_y)) and @mod(random_value, 2) == 0) {
+            if (self.y > center_y_f32 and @mod(random_value, 2) == 0) {
                 result.dy = -1.0;
-            } else if (self.y < @as(f32, @floatFromInt(center_y)) and @mod(random_value, 2) == 0) {
+            } else if (self.y < center_y_f32 and @mod(random_value, 2) == 0) {
                 result.dy = 1.0;
             }
             
@@ -336,21 +315,19 @@ pub const Agent = struct {
     
     // Apply health effects from terrain
     pub fn applyHealthEffects(self: *Agent, health_effect: i8) void {
-        if (health_effect > 0) {
+        const health_effect_i8 = if (health_effect < 0) 0 else health_effect;
+        const health_effect_u8: u8 = @intCast(health_effect_i8);
+        if (health_effect_u8 > 0) {
             // Health boost
-            self.health = @min(self.health + @as(u8, @intCast(health_effect)), max_health);
-        } else if (health_effect < 0) {
+            self.health = @min(self.health + health_effect_u8, max_health);
+        } else {
             // Health penalty
             const health_penalty = @abs(health_effect);
-            if (self.health > health_penalty) {
-                self.health -= @as(u8, @intCast(health_penalty));
+            const penalty: u8 = if (health_penalty > 255) 255 else @as(u8, health_penalty);
+            if (self.health > penalty) {
+                self.health -= penalty;
             } else {
                 self.health = 1; // Don't let health drop to 0 automatically
-            }
-        } else {
-            // Natural health regeneration when no terrain effect
-            if (self.health < max_health) {
-                self.health = @min(self.health + health_regen, max_health);
             }
         }
     }

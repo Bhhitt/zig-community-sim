@@ -122,7 +122,7 @@ pub const AgentType = enum {
                 .smoothness = 0.7,
             },
             .Explorer => .{
-                .move_chance = 60,
+                .move_chance = 90,
                 .can_move_diagonally = true,
                 .diagonal_chance = 30,
                 .base_energy_cost = 1,
@@ -133,6 +133,7 @@ pub const AgentType = enum {
                 .directional_bias = .{ .north = 20, .south = 40, .east = 20, .west = 20 },
                 .double_step_chance = 10,
                 .smoothness = 0.2,
+                .can_double_step = false,
             },
             .Builder => .{
                 .move_chance = 20,

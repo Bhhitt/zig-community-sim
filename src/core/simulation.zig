@@ -109,9 +109,9 @@ pub const Simulation = struct {
     }
 
     // Safe agent update function for single-threaded mode
-    fn safeUpdateAgentSingleThreaded(agent: *Agent, map: *Map, config: anytype) void {
-        // Update agent, passing the map for terrain interactions
-        agent_update_system.updateAgent(agent, map, config);
+    fn safeUpdateAgentSingleThreaded(agent: *Agent, map: *Map, config: anytype, agents: []const Agent) void {
+        // Update agent, passing the map for terrain interactions, including all agents for perception
+        agent_update_system.updateAgent(agent, map, config, agents);
 
         // Map bounds are now checked within the agent update, but just to be safe
         if (agent.x >= @as(f32, @floatFromInt(map.width))) {
@@ -180,7 +180,7 @@ pub const Simulation = struct {
             } else {
                 // Fallback to single-threaded mode
                 for (free_agents.items) |agent| {
-                    safeUpdateAgentSingleThreaded(agent, &self.map, config);
+                    safeUpdateAgentSingleThreaded(agent, &self.map, config, self.agents.items);
                 }
             }
         } else {
@@ -189,7 +189,7 @@ pub const Simulation = struct {
             
             // Process agents
             for (free_agents.items) |agent| {
-                safeUpdateAgentSingleThreaded(agent, &self.map, config);
+                safeUpdateAgentSingleThreaded(agent, &self.map, config, self.agents.items);
             }
         }
         
@@ -288,7 +288,7 @@ pub const ThreadPool = struct {
         
         // Single-threaded implementation for safety
         for (agents) |agent| {
-            agent_update_system.updateAgent(agent, map, config);
+            agent_update_system.updateAgent(agent, map, config, agents);
         }
     }
 };
