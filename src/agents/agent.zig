@@ -40,7 +40,7 @@ pub const Interaction = struct {
             .agent1_id = agent1.id,
             .agent2_id = agent2.id,
             .type = interaction_type,
-            .duration = 10, // Default duration
+            .duration = 3, // Default duration
             .state = initial_state,
         };
     }

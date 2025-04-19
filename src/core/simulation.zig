@@ -162,7 +162,6 @@ pub const Simulation = struct {
                 try free_agents.append(agent);
             }
         }
-        
         std.debug.print("Processing {d} agents (thread_count: {d})\n", 
                        .{free_agents.items.len, thread_count});
                        
@@ -187,7 +186,6 @@ pub const Simulation = struct {
             // Single-threaded mode
             std.debug.print("Using single-threaded mode for agent updates\n", .{});
             
-            // Process agents
             for (free_agents.items) |agent| {
                 safeUpdateAgentSingleThreaded(agent, &self.map, config, self.agents.items);
             }
@@ -380,7 +378,6 @@ pub const ThreadPool = struct {
         if (@hasField(@TypeOf(config), "food_seek_aggressiveness_hunger_coeff")) {
             self.thread_config.food_seek_aggressiveness_hunger_coeff = config.food_seek_aggressiveness_hunger_coeff;
         }
-        
         std.debug.print("Processing {d} agents using ThreadPool with {d} threads\n", 
             .{agents.len, self.thread_count});
             
