@@ -96,13 +96,13 @@ pub const Agent = struct {
     const max_energy = 100;
     const health_regen = 1; // Default health regeneration
     
-    pub fn init(id: usize, x: usize, y: usize, agent_type: AgentType, health: u8, energy: u8) Agent {
+    pub fn init(id: usize, x: f32, y: f32, agent_type: AgentType, health: u8, energy: u8) Agent {
         // Use smoothness from agent type's movement pattern
         const smoothness = agent_type.getMovementPattern().smoothness;
         return .{
             .id = id,
-            .x = @as(f32, @floatFromInt(x)),
-            .y = @as(f32, @floatFromInt(y)),
+            .x = x,
+            .y = y,
             .type = agent_type,
             .health = health,
             .energy = energy,
@@ -131,9 +131,27 @@ pub const Agent = struct {
     }
     
     // Calculate movement direction based on agent type and pattern
-    pub fn calculateMovement(self: *Agent, pattern: MovementPattern) MovementResult {
+    pub fn calculateMovement(self: *Agent, pattern: MovementPattern, config: anytype) MovementResult {
         const random_value = self.updateSeed();
         var result = MovementResult{};
+        
+        // Configurable hunger-driven food seeking
+        if (self.hunger > 50 and self.nearest_food_x != null and self.nearest_food_y != null) {
+            // Calculate aggressiveness as a function of hunger and config
+            const base = config.food_seek_aggressiveness_base;
+            const coeff = config.food_seek_aggressiveness_hunger_coeff;
+            const hunger_f32: f32 = @floatFromInt(self.hunger);
+            const prob = base + coeff * hunger_f32;
+            const rand_mod: u32 = @truncate(random_value % 1000);
+            const rand_f32: f32 = @floatFromInt(rand_mod);
+            if ((rand_f32 / 1000.0) < prob) {
+                const dx = self.nearest_food_x.? - self.x;
+                const dy = self.nearest_food_y.? - self.y;
+                result.dx = if (dx > 0.1) 1.0 else if (dx < -0.1) -1.0 else 0.0;
+                result.dy = if (dy > 0.1) 1.0 else if (dy < -0.1) -1.0 else 0.0;
+                return result;
+            }
+        }
         
         // Check if agent should move this turn
         if (@mod(random_value, 100) >= pattern.move_chance) {
@@ -143,8 +161,8 @@ pub const Agent = struct {
         // Pattern-based movement (used by Builder)
         if (pattern.pattern_based) {
             const pattern_val = @mod(random_value, 8);
-            const x_int: i32 = @intFromFloat(self.x);
-            const y_int: i32 = @intFromFloat(self.y);
+            const x_int = @as(i32, @intFromFloat(self.x));
+            const y_int = @as(i32, @intFromFloat(self.y));
             if (pattern_val < 2) {
                 // Move in small square pattern
                 if (@mod(x_int + y_int, 2) == 0) {
@@ -189,17 +207,19 @@ pub const Agent = struct {
         if (pattern.home_seeking and @mod(random_value, 100) < pattern.home_seeking_chance) {
             // Determine "home" based on ID
             const center_x = @mod(self.id * 7, 10);
+            const center_x_f32: f32 = @floatFromInt(center_x);
             const center_y = @mod(self.id * 13, 10);
+            const center_y_f32: f32 = @floatFromInt(center_y);
             
-            if (self.x > @as(f32, @floatFromInt(center_x)) and @mod(random_value, 2) == 0) {
+            if (self.x > center_x_f32 and @mod(random_value, 2) == 0) {
                 result.dx = -1.0;
-            } else if (self.x < @as(f32, @floatFromInt(center_x)) and @mod(random_value, 2) == 0) {
+            } else if (self.x < center_x_f32 and @mod(random_value, 2) == 0) {
                 result.dx = 1.0;
             }
             
-            if (self.y > @as(f32, @floatFromInt(center_y)) and @mod(random_value, 2) == 0) {
+            if (self.y > center_y_f32 and @mod(random_value, 2) == 0) {
                 result.dy = -1.0;
-            } else if (self.y < @as(f32, @floatFromInt(center_y)) and @mod(random_value, 2) == 0) {
+            } else if (self.y < center_y_f32 and @mod(random_value, 2) == 0) {
                 result.dy = 1.0;
             }
             
@@ -292,21 +312,19 @@ pub const Agent = struct {
     
     // Apply health effects from terrain
     pub fn applyHealthEffects(self: *Agent, health_effect: i8) void {
-        if (health_effect > 0) {
+        const health_effect_i8 = if (health_effect < 0) 0 else health_effect;
+        const health_effect_u8: u8 = @intCast(health_effect_i8);
+        if (health_effect_u8 > 0) {
             // Health boost
-            self.health = @min(self.health + @as(u8, @intCast(health_effect)), max_health);
-        } else if (health_effect < 0) {
+            self.health = @min(self.health + health_effect_u8, max_health);
+        } else {
             // Health penalty
             const health_penalty = @abs(health_effect);
-            if (self.health > health_penalty) {
-                self.health -= @as(u8, @intCast(health_penalty));
+            const penalty: u8 = if (health_penalty > 255) 255 else @as(u8, health_penalty);
+            if (self.health > penalty) {
+                self.health -= penalty;
             } else {
                 self.health = 1; // Don't let health drop to 0 automatically
-            }
-        } else {
-            // Natural health regeneration when no terrain effect
-            if (self.health < max_health) {
-                self.health = @min(self.health + health_regen, max_health);
             }
         }
     }

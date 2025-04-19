@@ -21,6 +21,8 @@ pub const BenchmarkConfig = struct {
     hunger_health_penalty: u8 = 1,
     thread_count: usize = 1,
     perception_radius: usize = 5, // Default perception radius for agent perception system
+    food_seek_aggressiveness_base: f32 = 0.5,
+    food_seek_aggressiveness_hunger_coeff: f32 = 0.01,
 };
 
 // --- Helper for agent stats ---

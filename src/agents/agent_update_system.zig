@@ -64,7 +64,7 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype, agents: []const Ag
     
     // --- Smooth continuous movement ---
     // Calculate target direction as before
-    const movement = agent.calculateMovement(movement_pattern);
+    const movement = agent.calculateMovement(movement_pattern, config);
     const target_dx = movement.dx * agent.speed;
     const target_dy = movement.dy * agent.speed;
     // If agent.smoothness > 0, interpolate velocity

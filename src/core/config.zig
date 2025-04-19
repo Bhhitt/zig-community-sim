@@ -17,4 +17,6 @@ pub const AppConfig = struct {
     hunger_health_penalty: u8 = 1, // Health lost per step above threshold
     thread_count: usize = 1, // Number of threads for agent updates (default single-threaded)
     perception_radius: usize = 5, // How far agents can "see" for food and other agents
+    food_seek_aggressiveness_base: f32 = 0.5, // Base probability to seek food when hungry (0.0-1.0)
+    food_seek_aggressiveness_hunger_coeff: f32 = 0.01, // Weight of hunger in aggressiveness
 };

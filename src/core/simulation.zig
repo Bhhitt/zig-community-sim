@@ -55,7 +55,7 @@ pub const Simulation = struct {
         health: u8 = 100,
         energy: u8 = 100,
     }) !void {
-        const agent = Agent.init(self.next_agent_id, config.x, config.y, config.type, config.health, config.energy);
+        const agent = Agent.init(self.next_agent_id, @floatFromInt(config.x), @floatFromInt(config.y), config.type, config.health, config.energy);
 
         try self.agents.append(agent);
         self.next_agent_id += 1;
