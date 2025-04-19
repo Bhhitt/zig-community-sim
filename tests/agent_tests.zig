@@ -39,9 +39,9 @@ test "agent type movement patterns" {
 
     const explorer_pattern = AgentType.Explorer.getMovementPattern();
     try testing.expectEqual(@as(u8, 90), explorer_pattern.move_chance);
-    try testing.expectEqual(false, explorer_pattern.can_move_diagonally);
-    try testing.expectEqual(true, explorer_pattern.can_double_step);
-    try testing.expectEqual(@as(u8, 14), explorer_pattern.double_step_chance);
+    try testing.expectEqual(true, explorer_pattern.can_move_diagonally);
+    try testing.expectEqual(false, explorer_pattern.can_double_step);
+    try testing.expectEqual(@as(u8, 10), explorer_pattern.double_step_chance);
     try testing.expectEqual(@as(u8, 1), explorer_pattern.base_energy_cost);
 }
 

@@ -14,6 +14,7 @@ pub fn updateAgentPerception(agent: *Agent, agents: []const Agent, map: *const M
     var min_food_dist: f32 = 1e9;
     var nearest_food_x: ?f32 = null;
     var nearest_food_y: ?f32 = null;
+    var found_food = false;
     const ax = @as(i32, @intFromFloat(agent.x));
     const ay = @as(i32, @intFromFloat(agent.y));
     const pr = @as(i32, @intCast(perception_radius));
@@ -23,22 +24,27 @@ pub fn updateAgentPerception(agent: *Agent, agents: []const Agent, map: *const M
         while (dx <= pr) : (dx += 1) {
             const nx = ax + dx;
             const ny = ay + dy;
-            if (nx < 0 or ny < 0 or nx >= @as(i32, @intCast(map.width)) or ny >= @as(i32, @intCast(map.height))) continue;
-            if (map.getFoodAt(@as(usize, @intCast(nx)), @as(usize, @intCast(ny))) > 0) {
+            if (nx < 0 or ny < 0 or nx >= map.width or ny >= map.height) continue;
+            if (map.getFoodAt(@intCast(nx), @intCast(ny)) > 0) {
                 const dist = @sqrt(@as(f32, @floatFromInt(dx * dx + dy * dy)));
                 if (dist < min_food_dist) {
                     min_food_dist = dist;
                     nearest_food_x = @as(f32, @floatFromInt(nx));
                     nearest_food_y = @as(f32, @floatFromInt(ny));
+                    found_food = true;
                 }
             }
-            dx += 1;
         }
-        dy += 1;
     }
-    agent.nearest_food_x = nearest_food_x;
-    agent.nearest_food_y = nearest_food_y;
-    agent.nearest_food_dist = if (nearest_food_x != null) min_food_dist else null;
+    if (found_food) {
+        agent.nearest_food_x = nearest_food_x;
+        agent.nearest_food_y = nearest_food_y;
+        agent.nearest_food_dist = min_food_dist;
+    } else {
+        agent.nearest_food_x = null;
+        agent.nearest_food_y = null;
+        agent.nearest_food_dist = null;
+    }
 
     // Count nearby agents (excluding self)
     var count: usize = 0;

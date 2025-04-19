@@ -145,8 +145,11 @@ pub const Agent = struct {
             const rand_mod: u32 = @truncate(random_value % 1000);
             const rand_f32: f32 = @floatFromInt(rand_mod);
             if ((rand_f32 / 1000.0) < prob) {
-                const dx = self.nearest_food_x.? - self.x;
-                const dy = self.nearest_food_y.? - self.y;
+                // SAFETY: Both nearest_food_x and nearest_food_y are checked for null above, so safe to unwrap
+                const nfx = self.nearest_food_x.?;
+                const nfy = self.nearest_food_y.?;
+                const dx = nfx - self.x;
+                const dy = nfy - self.y;
                 result.dx = if (dx > 0.1) 1.0 else if (dx < -0.1) -1.0 else 0.0;
                 result.dy = if (dy > 0.1) 1.0 else if (dy < -0.1) -1.0 else 0.0;
                 return result;
