@@ -249,7 +249,10 @@ pub const SdlRenderer = struct {
 
             // Draw cell border
             _ = c.SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
-            _ = c.SDL_RenderRect(renderer, &rect);
+            _ = c.SDL_RenderLine(renderer, @as(f32, rect.x), @as(f32, rect.y), @as(f32, rect.x + rect.w), @as(f32, rect.y));
+            _ = c.SDL_RenderLine(renderer, @as(f32, rect.x), @as(f32, rect.y + rect.h), @as(f32, rect.x + rect.w), @as(f32, rect.y + rect.h));
+            _ = c.SDL_RenderLine(renderer, @as(f32, rect.x), @as(f32, rect.y), @as(f32, rect.x), @as(f32, rect.y + rect.h));
+            _ = c.SDL_RenderLine(renderer, @as(f32, rect.x + rect.w), @as(f32, rect.y), @as(f32, rect.x + rect.w), @as(f32, rect.y + rect.h));
         }
     }
 
@@ -368,15 +371,14 @@ pub const SdlRenderer = struct {
     }
 
     // Render simulation status information
-    pub fn renderSimulationStatus(_: SdlRenderer, step_count: usize, paused: bool, spawn_mode: bool, selected_agent_type: AgentType, agent_count: usize, fps: f32) void {
+    pub fn renderSimulationStatus(self: SdlRenderer, step_count: usize, paused: bool, spawn_mode: bool, selected_agent_type: AgentType, agent_count: usize, fps: f32) void {
         _ = step_count;
         _ = paused;
         _ = spawn_mode;
         _ = selected_agent_type;
         _ = agent_count;
         _ = fps;
-
-        // This would render status information, but requires SDL_ttf
-        // We'll implement this later if needed
+        if (self.renderer == null) return;
+        // Note: Text rendering requires SDL_ttf or similar, which is not implemented.
     }
 };

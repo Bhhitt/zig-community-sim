@@ -161,7 +161,16 @@ pub fn build(b: *std.Build) void {
         },
     });
     
-    // App module
+    // Create stats_window module with correct imports
+    const stats_window_module = b.addModule("stats_window", .{
+        .root_source_file = b.path("src/ui/stats_window.zig"),
+        .imports = &.{
+            .{ .name = "agent", .module = agent_module },
+            .{ .name = "agent_type", .module = agent_type_module },
+        },
+    });
+
+    // Create app module and add stats_window as import
     const app_module = b.addModule("app", .{
         .root_source_file = b.path("src/core/app.zig"),
         .imports = &.{
@@ -169,6 +178,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "agent_type", .module = agent_type_module },
             .{ .name = "simulation", .module = simulation_module },
             .{ .name = "renderer", .module = renderer_module },
+            .{ .name = "stats_window", .module = stats_window_module },
         },
     });
     
@@ -214,6 +224,9 @@ pub fn build(b: *std.Build) void {
         
         // Update the build_options module to enable SDL
         build_options_module.addCMacro("USE_SDL", "1");
+        
+        // Link SDL_ttf for stats window text rendering
+        exe.linkSystemLibrary("SDL3_ttf");
     }
     
     // Add all module dependencies

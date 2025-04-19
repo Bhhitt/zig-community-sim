@@ -3,12 +3,14 @@ const AppConfig = @import("config").AppConfig;
 const AgentType = @import("agent_type").AgentType;
 const Simulation = @import("simulation").Simulation;
 const SdlRenderer = @import("renderer").SdlRenderer;
+const StatsWindow = @import("stats_window").StatsWindow;
 
 pub const App = struct {
     allocator: std.mem.Allocator,
     config: AppConfig,
     simulation: Simulation,
     sdl_renderer: ?SdlRenderer,
+    stats_window: ?StatsWindow,
     
     // Application state
     paused: bool,
@@ -30,8 +32,10 @@ pub const App = struct {
         
         // Initialize SDL renderer if enabled
         var sdl_renderer: ?SdlRenderer = null;
+        var stats_window: ?StatsWindow = null;
         if (config.use_sdl) {
             sdl_renderer = try SdlRenderer.init(config.map_width, config.map_height);
+            stats_window = try StatsWindow.init();
         }
         
         return App{
@@ -39,6 +43,7 @@ pub const App = struct {
             .config = config,
             .simulation = simulation,
             .sdl_renderer = sdl_renderer,
+            .stats_window = stats_window,
             .paused = false,
             .step_once = false,
             .spawn_mode = false,
@@ -56,6 +61,10 @@ pub const App = struct {
         
         if (self.sdl_renderer) |*renderer| {
             renderer.deinit();
+        }
+        
+        if (self.stats_window) |*window| {
+            window.deinit();
         }
     }
     
@@ -184,6 +193,11 @@ pub const App = struct {
                 self.current_fps
             );
             renderer.endFrame();
+            
+            // After main window rendering, update stats window if present
+            if (self.stats_window) |*stats| {
+                stats.render(self.simulation.agents.items, self.simulation.interaction_system.getInteractions());
+            }
             
             // Add a small delay to control simulation speed
             if (!self.paused) {
