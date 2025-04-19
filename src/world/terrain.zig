@@ -44,15 +44,30 @@ pub const TerrainGenerator = struct {
             }
         }
 
+        // Add a dirt band at the bottom of the map
+        const dirt_band_height = @max(2, height / 18);
+        for ((height - dirt_band_height)..height) |y| {
+            for (0..width) |x| {
+                terrain[y * width + x] = .Dirt;
+            }
+        }
+
         // Use a timestamp-based seed for randomness if none provided
         var seed: u64 = seed_value orelse @as(u64, @bitCast(std.time.milliTimestamp()));
         
         // Make cluster count and size proportional to map size for better small-map coverage
         const min_dim = if (width < height) width else height;
-        try generateTerrainFeature(terrain, width, height, .Grass, @max(1, min_dim / 6), @max(5, min_dim / 4), &seed);
-        try generateTerrainFeature(terrain, width, height, .Forest, @max(1, min_dim / 10), @max(3, min_dim / 6), &seed);
-        try generateTerrainFeature(terrain, width, height, .Mountain, @max(1, min_dim / 15), @max(2, min_dim / 8), &seed);
-        try generateTerrainFeature(terrain, width, height, .Water, @max(1, min_dim / 8), @max(4, min_dim / 5), &seed);
+
+        // --- PLAINS AND FOREST DOMINANCE ---
+        // Large, overlapping clusters for Grass and Forest
+        try generateTerrainFeature(terrain, width, height, .Grass, @max(3, min_dim / 3), @max(15, min_dim / 2), &seed);
+        try generateTerrainFeature(terrain, width, height, .Forest, @max(3, min_dim / 3), @max(15, min_dim / 2), &seed);
+
+        // Occasional lakes and rivers (Water clusters) - REDUCE
+        try generateTerrainFeature(terrain, width, height, .Water, 1, @max(4, min_dim / 5), &seed);
+
+        // Occasional hills/mountains
+        try generateTerrainFeature(terrain, width, height, .Mountain, @max(1, min_dim / 12), @max(6, min_dim / 5), &seed);
     }
     
     // Helper function to generate terrain features (clusters of similar terrain)

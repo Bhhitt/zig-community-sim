@@ -24,8 +24,6 @@ pub const App = struct {
     current_fps: f32,
     
     pub fn init(allocator: std.mem.Allocator, config: AppConfig) !App {
-        std.debug.print("[CONFIG] map_width: {} map_height: {} use_sdl: {}\n", .{config.map_width, config.map_height, config.use_sdl});
-        
         // Initialize simulation
         var simulation = try Simulation.init(allocator, config.map_width, config.map_height, config);
         errdefer simulation.deinit();
@@ -62,21 +60,6 @@ pub const App = struct {
     }
     
     pub fn run(self: *App) !void {
-        // Print the initial state to terminal
-        std.debug.print("Initial map state:\n", .{});
-        try self.simulation.printMap();
-        std.debug.print("\n", .{});
-        
-        // Display help message
-        std.debug.print("\nControls:\n", .{});
-        std.debug.print("  SPACE: Pause/resume simulation\n", .{});
-        std.debug.print("  RIGHT ARROW: Advance one step when paused\n", .{});
-        std.debug.print("  A: Enter agent spawn mode (then click to place)\n", .{});
-        std.debug.print("  1-6: Select agent type (1=Settler, 2=Explorer, 3=Builder, 4=Farmer, 5=Miner, 6=Scout)\n", .{});
-        std.debug.print("  B: Benchmark - Add 10 random agents\n", .{});
-        std.debug.print("  S: Stress test - Add 100 random agents\n", .{});
-        std.debug.print("  ESC: Quit\n\n", .{});
-        
         // Main loop
         const max_steps: ?usize = @import("root").max_steps;
         while (!self.quit) {
@@ -91,11 +74,7 @@ pub const App = struct {
         }
         
         // Print final state and save map to file
-        std.debug.print("\n\nFinal map state after {d} steps:\n", .{self.step_count});
-        try self.simulation.printMap();
-        
         try self.simulation.saveMapToFile("map_state.txt");
-        std.debug.print("\nMap saved to file 'map_state.txt'\n", .{});
     }
     
     fn processFrame(self: *App, config: AppConfig) !void {
@@ -120,9 +99,6 @@ pub const App = struct {
             
             if (elapsed >= 1000) {
                 self.current_fps = @as(f32, @floatFromInt(self.frames_since_check)) * 1000.0 / @as(f32, @floatFromInt(elapsed));
-                std.debug.print("\rStep: {d} | ", .{self.step_count});
-                self.simulation.printStats();
-                std.debug.print(" | {d:.2} updates/sec\r", .{self.current_fps});
                 self.frames_since_check = 0;
                 self.last_performance_check = current_time;
             }
@@ -136,7 +112,6 @@ pub const App = struct {
         if (self.sdl_renderer) |*renderer| {
             // Process inputs
             const app_input = renderer.processEvents(self.spawn_mode, self.paused, self.config.map_width, self.config.map_height);
-            std.debug.print("[APP] view_x: {} view_y: {}\n", .{renderer.view_x, renderer.view_y});
             self.quit = app_input.quit;
             self.paused = app_input.paused;
             self.step_once = app_input.step;
@@ -144,13 +119,11 @@ pub const App = struct {
             // Handle agent type selection
             if (app_input.agent_type_changed) {
                 self.selected_agent_type = app_input.selected_agent_type;
-                std.debug.print("Selected agent type: {s}\n", .{@tagName(self.selected_agent_type)});
             }
             
             // Toggle spawn mode
             if (app_input.toggle_spawn_mode) {
                 self.spawn_mode = !self.spawn_mode;
-                std.debug.print("Spawn mode: {}\n", .{self.spawn_mode});
             }
             
             // Spawn agent if requested
@@ -167,11 +140,6 @@ pub const App = struct {
                         .type = self.selected_agent_type,
                         .health = 100,
                         .energy = 100,
-                    });
-                    std.debug.print("Spawned {s} at position ({}, {})\n", .{
-                        @tagName(self.selected_agent_type), 
-                        map_x, 
-                        map_y
                     });
                 }
             }
@@ -198,9 +166,6 @@ pub const App = struct {
                 
                 if (elapsed >= 1000) {
                     self.current_fps = @as(f32, @floatFromInt(self.frames_since_check)) * 1000.0 / @as(f32, @floatFromInt(elapsed));
-                    
-                    // Print status
-                    std.debug.print("\rStep: {d} | Agents: {d} | Interactions: {d} | {d:.2} updates/sec\r", .{self.step_count, self.simulation.agents.items.len, self.simulation.interaction_system.getInteractions().len, self.current_fps});
                     
                     self.frames_since_check = 0;
                     self.last_performance_check = current_time;
@@ -231,15 +196,10 @@ pub const App = struct {
     
     // Helper function to add random agents for benchmarking
     fn addRandomAgents(self: *App, count: usize) !void {
-        std.debug.print("Adding {d} random agents...\n", .{count});
-        
-        const width = self.config.map_width;
-        const height = self.config.map_height;
-        
         var i: usize = 0;
         while (i < count) : (i += 1) {
-            const x = std.crypto.random.int(usize) % width;
-            const y = std.crypto.random.int(usize) % height;
+            const x = std.crypto.random.int(usize) % self.config.map_width;
+            const y = std.crypto.random.int(usize) % self.config.map_height;
             const type_idx = std.crypto.random.int(u8) % 6;
             const agent_type = switch (type_idx) {
                 0 => AgentType.Settler,
@@ -260,7 +220,5 @@ pub const App = struct {
                 .energy = energy,
             });
         }
-        
-        std.debug.print("Added {d} random agents. Total agents: {d}\n", .{count, self.simulation.agents.items.len});
     }
 };

@@ -54,14 +54,10 @@ pub const Simulation = struct {
         health: u8 = 100,
         energy: u8 = 100,
     }) !void {
-        std.debug.print("[DEBUG] spawnAgent called: id={} x={} y={} type={s} health={} energy={} agents.len={}\n", .{
-            self.next_agent_id, config.x, config.y, @tagName(config.type), config.health, config.energy, self.agents.items.len
-        });
         const agent = Agent.init(self.next_agent_id, config.x, config.y, config.type, config.health, config.energy);
 
         try self.agents.append(agent);
         self.next_agent_id += 1;
-        std.debug.print("[DEBUG] Agent appended: id={} total_agents={}\n", .{agent.id, self.agents.items.len});
     }
 
     pub fn printMap(self: Simulation) !void {
@@ -119,7 +115,6 @@ pub const Simulation = struct {
     }
 
     pub fn update(self: *Simulation, config: anytype) !void {
-        std.debug.print("[DEBUG] update called: agents.len={} map.size={}x{}\n", .{self.agents.items.len, self.map.width, self.map.height});
         // Regrow food every step with config value (now f32)
         self.map.regrowFood(config.food_regrow_chance);
 
@@ -130,9 +125,6 @@ pub const Simulation = struct {
             // Use original single-threaded approach for small agent counts
             var idx: usize = 0;
             for (self.agents.items) |*agent| {
-                std.debug.print("[DEBUG] update: agent idx={} id={} pos=({}, {}) health={} energy={} type={s}\n", .{
-                    idx, agent.id, agent.x, agent.y, agent.health, agent.energy, @tagName(agent.type)
-                });
                 if (!self.interaction_system.isAgentInteracting(agent.id)) {
                     agent_update_system.updateAgent(agent, &self.map, config);
 
@@ -148,7 +140,6 @@ pub const Simulation = struct {
             }
         } else {
             // Use multi-threaded approach for larger agent counts
-            std.debug.print("[DEBUG] update: multi-threaded batch update\n", .{});
             var mutex = Thread.Mutex{};
             var threads: [thread_count]Thread = undefined;
             var contexts: [thread_count]AgentUpdateContext = undefined;
@@ -168,7 +159,6 @@ pub const Simulation = struct {
                     .end_index = end,
                     .mutex = &mutex,
                 };
-                std.debug.print("[DEBUG] update: spawning thread {} for agents[{}..{})\n", .{i, start, end});
                 threads[i] = try Thread.spawn(.{}, updateAgentBatch, .{&contexts[i], config});
             }
             // Wait for all threads to complete
@@ -178,7 +168,6 @@ pub const Simulation = struct {
                 }
             }
         }
-        std.debug.print("[DEBUG] update: calling interaction_system.update()\n", .{});
         // Update interactions (this remains single-threaded for simplicity)
         try self.interaction_system.update(self.agents.items);
     }

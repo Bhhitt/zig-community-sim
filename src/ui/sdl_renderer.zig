@@ -119,7 +119,6 @@ pub const SdlRenderer = struct {
         const cells_y: usize = @intCast(@divTrunc(h, @as(isize, self.config.cell_size)));
         const max_view_x = if (map_width > cells_x) map_width - cells_x else 0;
         const max_view_y = if (map_height > cells_y) map_height - cells_y else 0;
-        std.debug.print("[DEBUG] map_width: {} map_height: {} cells_x: {} cells_y: {} max_view_x: {} max_view_y: {}\n", .{ map_width, map_height, cells_x, cells_y, max_view_x, max_view_y });
         while (c.SDL_PollEvent(&event)) {
             switch (event.type) {
                 c.SDL_EVENT_QUIT => {
@@ -159,16 +158,12 @@ pub const SdlRenderer = struct {
                         result.selected_agent_type = .Scout;
                     } else if (scancode == c.SDL_SCANCODE_LEFT) {
                         if (self.view_x > 0) self.view_x -= 1;
-                        std.debug.print("view_x: {}\n", .{self.view_x});
                     } else if (scancode == c.SDL_SCANCODE_RIGHT) {
                         self.view_x += 1;
-                        std.debug.print("view_x: {}\n", .{self.view_x});
                     } else if (scancode == c.SDL_SCANCODE_UP) {
                         if (self.view_y > 0) self.view_y -= 1;
-                        std.debug.print("view_y: {}\n", .{self.view_y});
                     } else if (scancode == c.SDL_SCANCODE_DOWN) {
                         self.view_y += 1;
-                        std.debug.print("view_y: {}\n", .{self.view_y});
                     }
                     // Clamp viewport after any arrow key
                     if (scancode == c.SDL_SCANCODE_LEFT or scancode == c.SDL_SCANCODE_RIGHT or scancode == c.SDL_SCANCODE_UP or scancode == c.SDL_SCANCODE_DOWN) {
@@ -176,7 +171,6 @@ pub const SdlRenderer = struct {
                         if (self.view_y > max_view_y) self.view_y = max_view_y;
                         if (self.view_x < 0) self.view_x = 0;
                         if (self.view_y < 0) self.view_y = 0;
-                        std.debug.print("[CLAMP] view_x: {} view_y: {}\n", .{ self.view_x, self.view_y });
                     }
                 },
                 c.SDL_EVENT_MOUSE_BUTTON_DOWN => {
@@ -367,7 +361,6 @@ pub const SdlRenderer = struct {
                         };
                         _ = c.SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
                         _ = c.SDL_RenderFillRect(renderer, &rect);
-                        std.debug.print("[AGENT] id={} map=({}, {}) view=({}, {}) px={}, py={}\n", .{agent.id, ax, ay, view_x_i32, view_y_i32, px, py});
                     }
                 }
             }

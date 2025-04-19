@@ -46,25 +46,21 @@ pub fn readKeyboardInput() u8 {
     
     // Every 100 frames, toggle pause
     if (frame_counter % 100 == 50) {
-        std.debug.print("\n*** AUTO: Toggling pause state ***\n", .{});
         return 'p';
     }
     
     // Every 300 frames, add benchmark agents
     if (frame_counter % 300 == 150) {
-        std.debug.print("\n*** AUTO: Adding 10 benchmark agents ***\n", .{});
         return 'b';
     }
     
     // Every 1000 frames, toggle stress test
     if (frame_counter % 1000 == 500) {
-        std.debug.print("\n*** AUTO: Adding 100 stress test agents ***\n", .{});
         return 's';
     }
     
     // After 3000 frames, quit
     if (frame_counter == 3000) {
-        std.debug.print("\n*** AUTO: Quitting simulation ***\n", .{});
         return 'q';
     }
     
