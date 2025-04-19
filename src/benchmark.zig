@@ -2,6 +2,7 @@
 const std = @import("std");
 const Simulation = @import("simulation").Simulation;
 const AgentType = @import("agent_type").AgentType;
+const Agent = @import("agent").Agent;
 
 /// Configuration for benchmarking the simulation.
 pub const BenchmarkConfig = struct {
@@ -21,13 +22,82 @@ pub const BenchmarkConfig = struct {
     thread_count: usize = 1,
 };
 
+// --- Helper for agent stats ---
+fn agentStats(agents: []const Agent) struct {
+    avg_health: f32,
+    min_health: f32,
+    max_health: f32,
+    avg_energy: f32,
+    min_energy: f32,
+    max_energy: f32,
+} {
+    var sum_health: f32 = 0;
+    var min_health: f32 = 10000;
+    var max_health: f32 = -10000;
+    var sum_energy: f32 = 0;
+    var min_energy: f32 = 10000;
+    var max_energy: f32 = -10000;
+    for (agents) |agent| {
+        const health_f: f32 = @floatFromInt(agent.health);
+        sum_health += health_f;
+        if (health_f < min_health) min_health = health_f;
+        if (health_f > max_health) max_health = health_f;
+        const energy_f: f32 = @floatFromInt(agent.energy);
+        sum_energy += energy_f;
+        if (energy_f < min_energy) min_energy = energy_f;
+        if (energy_f > max_energy) max_energy = energy_f;
+    }
+    const count: f32 = @floatFromInt(agents.len);
+    return .{
+        .avg_health = sum_health / count,
+        .min_health = min_health,
+        .max_health = max_health,
+        .avg_energy = sum_energy / count,
+        .min_energy = min_energy,
+        .max_energy = max_energy,
+    };
+}
+
+// --- CSV Export ---
+fn exportCsv(
+    file: *std.fs.File,
+    config: BenchmarkConfig,
+    setup_time: i64,
+    sim_time: i64,
+    wall_time: i64,
+    mem_used: usize,
+    stats: anytype,
+    label: []const u8,
+) !void {
+    try file.writer().print(
+        "{s},{d},{d},{d},{d},{d},{d},{d},{d},{d},{d},{d},{d},{d}\n",
+        .{
+            label,
+            config.agent_count,
+            config.iterations,
+            config.thread_count,
+            setup_time,
+            sim_time,
+            wall_time,
+            mem_used,
+            stats.avg_health,
+            stats.min_health,
+            stats.max_health,
+            stats.avg_energy,
+            stats.min_energy,
+            stats.max_energy,
+        },
+    );
+}
+
 /// Runs a benchmark with the given allocator and configuration.
 /// 
 /// This function creates a simulation with the specified configuration, adds agents to the map,
 /// and then runs the simulation for the specified number of iterations. It prints out the results
 /// of the benchmark, including the total time taken and the average iteration time.
-pub fn runBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig) !void {
-    // Create a large simulation
+pub fn runBenchmark(allocator: std.mem.Allocator, _: ?*usize, config: BenchmarkConfig) !void {
+    const start_wall = std.time.milliTimestamp();
+    
     std.debug.print("Starting benchmark with {d} agents for {d} iterations...\n", 
         .{config.agent_count, config.iterations});
     
@@ -37,7 +107,7 @@ pub fn runBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig) !void
     // Add agents
     std.debug.print("Adding {d} agents to map...\n", .{config.agent_count});
     
-    const start_time = std.time.milliTimestamp();
+    const start_setup = std.time.milliTimestamp();
     var agent_count: usize = 0;
     
     // Add agents of each type evenly distributed
@@ -59,13 +129,14 @@ pub fn runBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig) !void
         });
     }
     
-    const setup_time = std.time.milliTimestamp() - start_time;
+    const end_setup = std.time.milliTimestamp();
+    const setup_time = end_setup - start_setup;
     std.debug.print("Setup completed in {d} ms\n", .{setup_time});
     
     // Run benchmark
     std.debug.print("Running simulation for {d} iterations...\n", .{config.iterations});
     
-    const benchmark_start = std.time.milliTimestamp();
+    const start_sim = std.time.milliTimestamp();
     
     // Run iterations
     for (0..config.iterations) |i| {
@@ -79,33 +150,69 @@ pub fn runBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig) !void
         }
     }
     
-    const total_time = std.time.milliTimestamp() - benchmark_start;
-    const avg_iteration_time = @as(f64, @floatFromInt(total_time)) / @as(f64, @floatFromInt(config.iterations));
+    const end_sim = std.time.milliTimestamp();
+    const sim_time = end_sim - start_sim;
     
-    // Print results
-    std.debug.print("\nBenchmark Results:\n", .{});
-    std.debug.print("------------------\n", .{});
+    // Agent stats
+    const stats = agentStats(simulation.agents.items);
+    
+    // Report
+    std.debug.print("\nBenchmark Results:\n------------------\n", .{});
     std.debug.print("Total agents: {d}\n", .{config.agent_count});
     std.debug.print("Map size: {d} x {d}\n", .{config.map_width, config.map_height});
     std.debug.print("Iterations: {d}\n", .{config.iterations});
-    std.debug.print("Total time: {d} ms\n", .{total_time});
-    std.debug.print("Average iteration time: {d:.2} ms\n", .{avg_iteration_time});
-    std.debug.print("Agents processed per second: {d:.2}\n", 
-        .{@as(f64, @floatFromInt(config.agent_count)) * 1000.0 / avg_iteration_time});
+    std.debug.print("Setup time: {d} ms\n", .{setup_time});
+    std.debug.print("Simulation time: {d} ms\n", .{sim_time});
+    std.debug.print("Total wall time: {d} ms\n", .{std.time.milliTimestamp() - start_wall});
+    std.debug.print("Agent health (avg/min/max): {d:.2}/{d:.2}/{d:.2}\n", .{stats.avg_health, stats.min_health, stats.max_health});
+    std.debug.print("Agent energy (avg/min/max): {d:.2}/{d:.2}/{d:.2}\n", .{stats.avg_energy, stats.min_energy, stats.max_energy});
+    
+    // CSV export
+    const csv_file_result = std.fs.cwd().openFile("tests/benchmark_results.csv", .{ .mode = .write_only });
+    var csv_file = csv_file_result catch |err| blk: {
+        if (err == error.FileNotFound) {
+            break :blk try std.fs.cwd().createFile("tests/benchmark_results.csv", .{});
+        } else {
+            return err;
+        }
+    };
+    defer csv_file.close();
+    try csv_file.seekFromEnd(0);
+    try exportCsv(
+        &csv_file,
+        config,
+        setup_time,
+        sim_time,
+        std.time.milliTimestamp() - start_wall,
+        0,
+        stats,
+        "benchmark"
+    );
 }
 
-fn runAndReportBenchmark(allocator: std.mem.Allocator, config: BenchmarkConfig, label: []const u8) !void {
-    std.debug.print("\n=== Benchmark ({s}) ===\n", .{label});
-    try runBenchmark(allocator, config);
+fn runAndReportBenchmark(allocator: std.mem.Allocator, _: ?*usize, config: BenchmarkConfig, label: []const u8) !void {
+    std.debug.print("\n=== Benchmark ({s}) [agents: {d}, iterations: {d}, threads: {d}] ===\n",
+        .{label, config.agent_count, config.iterations, config.thread_count});
+    const start_time = std.time.milliTimestamp();
+    try runBenchmark(allocator, null, config);
+    const end_time = std.time.milliTimestamp();
+    std.debug.print("Total benchmark wall time: {d} ms\n", .{end_time - start_time});
 }
 
 pub fn main() !void {
-    const gpa = std.heap.page_allocator;
-    const base_config = BenchmarkConfig{};
-    // Single-threaded
-    try runAndReportBenchmark(gpa, base_config, "single-threaded");
-    // Multi-threaded (use half or all available cores, or set to 4 for demo)
-    var mt_config = base_config;
-    mt_config.thread_count = 4;
-    try runAndReportBenchmark(gpa, mt_config, "multi-threaded (4 threads)");
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    // Try higher agent counts and thread counts
+    const configs = [_]BenchmarkConfig{
+        BenchmarkConfig{ .agent_count = 10000, .iterations = 500, .thread_count = 1 },
+        BenchmarkConfig{ .agent_count = 10000, .iterations = 500, .thread_count = 8 },
+        BenchmarkConfig{ .agent_count = 25000, .iterations = 200, .thread_count = 1 },
+        BenchmarkConfig{ .agent_count = 25000, .iterations = 200, .thread_count = 8 },
+        BenchmarkConfig{ .agent_count = 50000, .iterations = 100, .thread_count = 1 },
+        BenchmarkConfig{ .agent_count = 50000, .iterations = 100, .thread_count = 8 },
+    };
+    for (configs) |cfg| {
+        const label = if (cfg.thread_count == 1) "single-threaded" else "multi-threaded";
+        try runAndReportBenchmark(allocator, null, cfg, label);
+    }
 }

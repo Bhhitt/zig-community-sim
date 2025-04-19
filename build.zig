@@ -202,6 +202,7 @@ pub fn build(b: *std.Build) void {
     benchmark_exe.root_module.addImport("terrain", terrain_module);
     benchmark_exe.root_module.addImport("terrain_effects", terrain_effects_module);
     benchmark_exe.root_module.addImport("interaction_type", interaction_type_module);
+    benchmark_exe.root_module.addImport("agent", agent_module);
     b.installArtifact(benchmark_exe);
     
     // Install the benchmark binary

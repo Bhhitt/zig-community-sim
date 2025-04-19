@@ -12,3 +12,13 @@ zig-out/
 # System files
 .DS_Store
 Thumbs.db
+
+# Performance test build artifacts
+perf_test
+perf_test.o
+*.o
+*.out
+*.exe
+
+# Benchmark results
+/tests/benchmark_results.csv
