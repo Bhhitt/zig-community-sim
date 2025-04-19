@@ -285,7 +285,7 @@ pub const SdlRenderer = struct {
                 if (food > 0) {
                     color = ColorRGB{ .r = 240, .g = 220, .b = 60 };
                 }
-                self.renderCell(x, y, color);
+                self.renderCell(xx, yy, color);
             }
         }
 
