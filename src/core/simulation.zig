@@ -76,7 +76,7 @@ pub const Simulation = struct {
         health: u8 = 100,
         energy: u8 = 100,
     }) !void {
-        const agent = Agent.init(self.next_agent_id, config.x, config.y, config.type, config.health, config.energy);
+        const agent = Agent.init(self.next_agent_id, @as(f32, @floatFromInt(config.x)), @as(f32, @floatFromInt(config.y)), config.type, config.health, config.energy);
 
         try self.agents.append(agent);
         self.next_agent_id += 1;
@@ -109,9 +109,9 @@ pub const Simulation = struct {
     }
 
     // Safe agent update function for single-threaded mode
-    fn safeUpdateAgentSingleThreaded(agent: *Agent, map: *Map, config: anytype, agents: []const Agent) void {
+    fn safeUpdateAgentSingleThreaded(agent: *Agent, map: *Map, config: anytype, all_agents: []Agent) void {
         // Update agent, passing the map for terrain interactions, including all agents for perception
-        agent_update_system.updateAgent(agent, map, config, agents);
+        agent_update_system.updateAgent(agent, map, config, all_agents);
 
         // Map bounds are now checked within the agent update, but just to be safe
         if (agent.x >= @as(f32, @floatFromInt(map.width))) {
@@ -216,6 +216,9 @@ pub const ThreadPool = struct {
     thread_config: struct {
         hunger_threshold: u8,
         hunger_health_penalty: u8,
+        perception_radius: usize,
+        food_seek_aggressiveness_base: f32,
+        food_seek_aggressiveness_hunger_coeff: f32,
     },
     
     // Thread stats
@@ -240,6 +243,9 @@ pub const ThreadPool = struct {
             .thread_config = .{
                 .hunger_threshold = 80,
                 .hunger_health_penalty = 1,
+                .perception_radius = 5,
+                .food_seek_aggressiveness_base = 0.5,
+                .food_seek_aggressiveness_hunger_coeff = 0.01,
             },
             .processing_count = std.atomic.Value(usize).init(0),
             .map = undefined, // Will be set before each batch
@@ -258,11 +264,91 @@ pub const ThreadPool = struct {
     pub fn deinit(self: *ThreadPool) void {
         if (!self.initialized) return;
         
-        // Clean up resources
+        // Signal all worker threads to shut down
+        self.shutdown_flag.store(true, .seq_cst);
+        
+        // Wait for a little while to allow threads to see the shutdown flag
+        std.time.sleep(10 * std.time.ns_per_ms);
+        
+        // Free allocated resources
         self.agents_to_process.deinit();
         self.agents_processed.deinit();
         self.allocator.free(self.threads);
         self.initialized = false;
+    }
+    
+    // Worker thread function that processes agents from the shared queue
+    fn workerThreadFn(self: *ThreadPool, thread_id: usize, config_ptr: *const anyopaque) void {
+        // We can't directly inspect anyopaque type, so we'll use our thread_config instead
+        // This avoids issues with trying to get the type of an opaque pointer
+        _ = config_ptr; // Acknowledge the parameter but don't use it directly
+        
+        std.debug.print("Worker thread {d} started\n", .{thread_id});
+        
+        // Process agents until work is complete or shutdown is requested
+        while (!self.shutdown_flag.load(.seq_cst)) {
+            // Get an agent to process
+            const agent = self.getNextAgentToProcess();
+            if (agent == null) {
+                // No more work to do, check if we're done
+                if (self.work_complete.load(.seq_cst)) {
+                    break;
+                }
+                // Wait a bit before checking again (yield to other threads)
+                std.time.sleep(1 * std.time.ns_per_ms);
+                continue;
+            }
+            
+            // Get a stable copy of all_agents for this thread
+            const all_agents = self.map.simulation_agents orelse &[_]Agent{};
+            
+            // Safety check for valid agent
+            if (agent) |valid_agent| {
+                // Instead of using the passed in config which is now opaque,
+                // we'll create a minimal config with the fields we need
+                const thread_safe_config = struct {
+                    hunger_threshold: u8,
+                    hunger_health_penalty: u8,
+                    perception_radius: usize,
+                    food_seek_aggressiveness_base: f32,
+                    food_seek_aggressiveness_hunger_coeff: f32,
+                }{
+                    .hunger_threshold = self.thread_config.hunger_threshold,
+                    .hunger_health_penalty = self.thread_config.hunger_health_penalty,
+                    .perception_radius = self.thread_config.perception_radius,
+                    .food_seek_aggressiveness_base = self.thread_config.food_seek_aggressiveness_base,
+                    .food_seek_aggressiveness_hunger_coeff = self.thread_config.food_seek_aggressiveness_hunger_coeff,
+                };
+                
+                // Process the agent with our thread-safe configuration
+                agent_update_system.updateAgent(valid_agent, self.map, thread_safe_config, all_agents);
+                
+                // Mark as processed
+                self.mutex.lock();
+                _ = self.processing_count.fetchSub(1, .seq_cst);
+                self.agents_processed.append(valid_agent) catch {};
+                self.mutex.unlock();
+            }
+        }
+        
+        std.debug.print("Worker thread {d} exiting\n", .{thread_id});
+    }
+    
+    // Get the next agent to process from the queue
+    fn getNextAgentToProcess(self: *ThreadPool) ?*Agent {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        
+        if (self.agents_to_process.items.len == 0) {
+            return null;
+        }
+        
+        // Get the last agent (for efficiency, we're using it as a stack)
+        const agent = self.agents_to_process.items[self.agents_to_process.items.len - 1];
+        _ = self.agents_to_process.pop();
+        _ = self.processing_count.fetchAdd(1, .seq_cst);
+        
+        return agent;
     }
     
     // Process a batch of agents in parallel
@@ -285,10 +371,62 @@ pub const ThreadPool = struct {
         if (@hasField(@TypeOf(config), "hunger_health_penalty")) {
             self.thread_config.hunger_health_penalty = config.hunger_health_penalty;
         }
-        
-        // Single-threaded implementation for safety
-        for (agents) |agent| {
-            agent_update_system.updateAgent(agent, map, config, agents);
+        if (@hasField(@TypeOf(config), "perception_radius")) {
+            self.thread_config.perception_radius = config.perception_radius;
         }
+        if (@hasField(@TypeOf(config), "food_seek_aggressiveness_base")) {
+            self.thread_config.food_seek_aggressiveness_base = config.food_seek_aggressiveness_base;
+        }
+        if (@hasField(@TypeOf(config), "food_seek_aggressiveness_hunger_coeff")) {
+            self.thread_config.food_seek_aggressiveness_hunger_coeff = config.food_seek_aggressiveness_hunger_coeff;
+        }
+        
+        std.debug.print("Processing {d} agents using ThreadPool with {d} threads\n", 
+            .{agents.len, self.thread_count});
+            
+        // Reset processing state
+        self.agents_to_process.clearRetainingCapacity();
+        self.agents_processed.clearRetainingCapacity();
+        self.processing_count.store(0, .seq_cst);
+        self.work_complete.store(false, .seq_cst);
+        
+        // Ensure we have capacity for all agents
+        try self.agents_to_process.ensureTotalCapacity(agents.len);
+        try self.agents_processed.ensureTotalCapacity(agents.len);
+        
+        // Add all agents to the processing queue
+        for (agents) |agent| {
+            try self.agents_to_process.append(agent);
+        }
+        
+        // Start worker threads if not already running
+        const config_ptr: *const anyopaque = @ptrCast(&config);
+        
+        // Create and start the worker threads
+        for (0..self.thread_count) |i| {
+            self.threads[i] = try Thread.spawn(.{}, workerThreadFn, .{self, i, config_ptr});
+        }
+        
+        // Wait for all agents to be processed
+        while (true) {
+            const items_to_process = self.agents_to_process.items.len;
+            const items_processing = self.processing_count.load(.seq_cst);
+            
+            if (items_to_process == 0 and items_processing == 0) {
+                // All work is done
+                self.work_complete.store(true, .seq_cst);
+                break;
+            }
+            
+            // Wait a bit before checking again
+            std.time.sleep(1 * std.time.ns_per_ms);
+        }
+        
+        // Wait for all threads to finish
+        for (0..self.thread_count) |i| {
+            self.threads[i].join();
+        }
+        
+        std.debug.print("All {d} agents processed by ThreadPool\n", .{agents.len});
     }
 };

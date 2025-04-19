@@ -276,6 +276,18 @@ pub const InteractionSystem = struct {
                     }
                 },
                 
+                .Concluding => {
+                    // Simply decrement duration for concluding state
+                    interaction.duration -= 1;
+                    if (interaction.duration == 0) {
+                        // Remove the interaction
+                        _ = self.interactions.swapRemove(i);
+                        removed_count += 1;
+                    } else {
+                        i += 1;
+                    }
+                },
+                
                 .Finishing => {
                     // Apply separation forces to agents
                     for (agents) |*agent| {

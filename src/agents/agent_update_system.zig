@@ -61,7 +61,12 @@ pub fn updateAgentPerception(agent: *Agent, agents: []const Agent, map: *const M
 
 pub fn updateAgent(agent: *Agent, map: *Map, config: anytype, agents: []const Agent) void {
     // Perception: update what this agent can "see"
-    updateAgentPerception(agent, agents, map, config.perception_radius);
+    // Use a default perception radius if not provided in config
+    const perception_radius = if (@hasField(@TypeOf(config), "perception_radius")) 
+                                 config.perception_radius 
+                              else 
+                                 5; // Default perception radius
+    updateAgentPerception(agent, agents, map, perception_radius);
 
     // Debug: Print position before update
     // std.debug.print("[AgentUpdateSystem] Before: id={} type={s} pos=({}, {})\n", .{ agent.id, @tagName(agent.type), agent.x, agent.y });

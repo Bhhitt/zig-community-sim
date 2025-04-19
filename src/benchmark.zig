@@ -22,6 +22,9 @@ pub const BenchmarkConfig = struct {
     thread_count: usize = 1,
     interaction_awareness_radius: usize = 5,
     interaction_desire_chance: u8 = 30,
+    perception_radius: usize = 5,
+    food_seek_aggressiveness_base: f32 = 0.5,
+    food_seek_aggressiveness_hunger_coeff: f32 = 0.01,
 };
 
 // --- Helper for agent stats ---
