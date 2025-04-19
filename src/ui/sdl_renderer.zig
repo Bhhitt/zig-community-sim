@@ -345,20 +345,22 @@ pub const SdlRenderer = struct {
             const view_y_i32: i32 = @intCast(view_y);
             for (agents) |agent| {
                 // Only render if agent is within the visible viewport AND inside the map bounds
-                const ax: i32 = @intFromFloat(agent.x);
-                const ay: i32 = @intFromFloat(agent.y);
+                const ax_f: f32 = agent.x;
+                const ay_f: f32 = agent.y;
+                const ax: i32 = @intFromFloat(ax_f);
+                const ay: i32 = @intFromFloat(ay_f);
                 if (ax >= view_x_i32 and ay >= view_y_i32 and ax < view_x_i32 + viewport_cells_x_i32 and ay < view_y_i32 + viewport_cells_y_i32 and ax >= 0 and ay >= 0 and ax < map_width_i32 and ay < map_height_i32) {
                     const color = getAgentColor(agent.type);
                     const cell_size = self.config.cell_size;
                     const padding = self.config.window_padding;
-                    // Map agent's map-relative position to screen position
-                    const px = padding + (ax - view_x_i32) * cell_size;
-                    const py = padding + (ay - view_y_i32) * cell_size;
+                    // Use subcell precision for rendering
+                    const px = @as(f32, @floatFromInt(padding)) + (ax_f - @as(f32, @floatFromInt(view_x_i32))) * @as(f32, @floatFromInt(cell_size));
+                    const py = @as(f32, @floatFromInt(padding)) + (ay_f - @as(f32, @floatFromInt(view_y_i32))) * @as(f32, @floatFromInt(cell_size));
                     // Only draw if inside drawable area (not in margin)
-                    if (px >= padding and py >= padding and px < self.width - padding and py < self.height - padding) {
+                    if (px >= @as(f32, @floatFromInt(padding)) and py >= @as(f32, @floatFromInt(padding)) and px < @as(f32, @floatFromInt(self.width - padding)) and py < @as(f32, @floatFromInt(self.height - padding))) {
                         var rect: c.SDL_FRect = .{
-                            .x = @as(f32, @floatFromInt(px)) + 1.0,
-                            .y = @as(f32, @floatFromInt(py)) + 1.0,
+                            .x = px + 1.0,
+                            .y = py + 1.0,
                             .w = @as(f32, @floatFromInt(cell_size)) - 2.0,
                             .h = @as(f32, @floatFromInt(cell_size)) - 2.0,
                         };

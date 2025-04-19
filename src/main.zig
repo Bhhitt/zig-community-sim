@@ -30,7 +30,7 @@ pub fn main() !void {
         }
         
         // Run benchmark
-        try benchmark.runBenchmark(allocator, bench_config);
+        try benchmark.runBenchmark(allocator, null, bench_config);
         return;
     }
 

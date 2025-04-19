@@ -185,6 +185,16 @@ pub fn build(b: *std.Build) void {
         },
     });
     
+    // Benchmark module
+    const benchmark_module = b.addModule("benchmark", .{
+        .root_source_file = b.path("src/benchmark.zig"),
+        .imports = &.{
+            .{ .name = "simulation", .module = simulation_module },
+            .{ .name = "agent_type", .module = agent_type_module },
+            .{ .name = "agent", .module = agent_module },
+        },
+    });
+    
     // Benchmark executable
     const benchmark_exe = b.addExecutable(.{
         .name = "benchmark",
@@ -260,6 +270,7 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("map", map_module);
     exe.root_module.addImport("build_options", build_options_module);
     exe.root_module.addImport("agent_update_system", agent_update_system_module);
+    exe.root_module.addImport("benchmark", benchmark_module);
     
     // Install the executable
     b.installArtifact(exe);

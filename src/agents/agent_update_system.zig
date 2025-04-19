@@ -14,12 +14,45 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
     // Get movement pattern for this agent type
     const movement_pattern = agent.type.getMovementPattern();
     
-    // Calculate movement direction
+    // --- Smooth continuous movement ---
+    // Calculate target direction as before
     const movement = agent.calculateMovement(movement_pattern);
-    // Scale movement by agent speed for smooth movement
-    const dx = movement.dx * agent.speed;
-    const dy = movement.dy * agent.speed;
+    const target_dx = movement.dx * agent.speed;
+    const target_dy = movement.dy * agent.speed;
+    // If agent.smoothness > 0, interpolate velocity
+    if (agent.smoothness > 0.0) {
+        // Smoothly steer velocity toward target direction
+        agent.vx = agent.vx * agent.smoothness + target_dx * (1.0 - agent.smoothness);
+        agent.vy = agent.vy * agent.smoothness + target_dy * (1.0 - agent.smoothness);
+        // Cap velocity to agent.speed
+        const vlen = @sqrt(agent.vx * agent.vx + agent.vy * agent.vy);
+        if (vlen > agent.speed) {
+            agent.vx = agent.vx / vlen * agent.speed;
+            agent.vy = agent.vy / vlen * agent.speed;
+        }
+    } else {
+        // No smoothness: instant direction change
+        agent.vx = target_dx;
+        agent.vy = target_dy;
+    }
+    // Update position
+    agent.x += agent.vx;
+    agent.y += agent.vy;
+    // --- End smooth movement ---
     
+    // Clamp agent.x and agent.y to valid map bounds before using @intFromFloat
+    const map_width_f = @as(f32, @floatFromInt(map.width - 1));
+    const map_height_f = @as(f32, @floatFromInt(map.height - 1));
+    if (agent.x < 0) {
+        agent.x = 0;
+    } else if (agent.x > map_width_f) {
+        agent.x = map_width_f;
+    }
+    if (agent.y < 0) {
+        agent.y = 0;
+    } else if (agent.y > map_height_f) {
+        agent.y = map_height_f;
+    }
     // Get current terrain the agent is on
     const current_terrain = map.getTerrainAt(@intFromFloat(agent.x), @intFromFloat(agent.y));
     const terrain_effects = TerrainEffect.forAgentAndTerrain(agent.type, current_terrain);
@@ -35,13 +68,26 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
     // Check if agent can move based on terrain
     const can_move = blk: {
         // No movement planned
-        if (dx == 0 and dy == 0) break :blk true;
+        if (agent.vx == 0 and agent.vy == 0) break :blk true;
         
         // Calculate new position with boundary checks
-        const new_pos = agent.calculateNewPosition(dx, dy);
+        const new_pos = agent.calculateNewPosition(agent.vx, agent.vy);
         
+        // Clamp new position to valid map bounds before using @intFromFloat
+        var clamped_new_x = new_pos.x;
+        var clamped_new_y = new_pos.y;
+        if (clamped_new_x < 0) {
+            clamped_new_x = 0;
+        } else if (clamped_new_x > map_width_f) {
+            clamped_new_x = map_width_f;
+        }
+        if (clamped_new_y < 0) {
+            clamped_new_y = 0;
+        } else if (clamped_new_y > map_height_f) {
+            clamped_new_y = map_height_f;
+        }
         // Get terrain at the new position and check movement probability
-        const target_terrain = map.getTerrainAt(@intFromFloat(new_pos.x), @intFromFloat(new_pos.y));
+        const target_terrain = map.getTerrainAt(@intFromFloat(clamped_new_x), @intFromFloat(clamped_new_y));
         const target_effects = TerrainEffect.forAgentAndTerrain(agent.type, target_terrain);
         
         break :blk @mod(agent.seed, 100) < target_effects.movement_prob;
@@ -50,12 +96,8 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
     // Always consume energy on movement attempt, even if move is blocked
     var attempted_move = false;
     if (can_move) {
-        // Calculate new position
-        const new_pos = agent.calculateNewPosition(dx, dy);
-        agent.x = new_pos.x;
-        agent.y = new_pos.y;
         attempted_move = true;
-    } else if (dx != 0 or dy != 0) {
+    } else if (agent.vx != 0 or agent.vy != 0) {
         attempted_move = true;
     }
     if (attempted_move) {
@@ -63,7 +105,7 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype) void {
         const cost_terrain = map.getTerrainAt(@intFromFloat(agent.x), @intFromFloat(agent.y));
         const cost_effects = TerrainEffect.forAgentAndTerrain(agent.type, cost_terrain);
         const energy_cost = agent.calculateEnergyCost(
-            dx, dy, 
+            agent.vx, agent.vy, 
             movement_pattern.base_energy_cost, 
             cost_effects.movement_cost
         );

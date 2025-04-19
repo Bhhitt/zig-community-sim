@@ -66,6 +66,9 @@ pub const MovementPattern = struct {
     home_seeking: bool = false,     // Occasionally moves toward a "home" position
     home_seeking_chance: u8 = 0,    // Chance to seek home (out of 100)
     
+    // Smoothness for continuous movement (0 = instant, 1 = very smooth/slow turns)
+    smoothness: f32 = 0.0,
+    
     // Movement tendencies
     tendency_to_stay: u8 = 0,       // Tendency to stay in current position (out of 100)
     direction_change_rate: u8 = 50, // How often direction changes (out of 100)

@@ -121,6 +121,17 @@ pub const Simulation = struct {
 
         const agent_count = self.agents.items.len;
 
+        // Remove dead agents before update (health == 0)
+        var remove_idx: usize = 0;
+        while (remove_idx < self.agents.items.len) {
+            if (self.agents.items[remove_idx].health == 0) {
+                _ = self.agents.swapRemove(remove_idx);
+                // Don't increment remove_idx, as swapRemove places a new agent at remove_idx
+            } else {
+                remove_idx += 1;
+            }
+        }
+
         // Skip threading if very few agents
         if (agent_count < config.thread_count * 2) {
             // Use original single-threaded approach for small agent counts
@@ -147,30 +158,29 @@ pub const Simulation = struct {
             var contexts = try allocator.alloc(AgentUpdateContext, config.thread_count);
             defer allocator.free(contexts);
 
-            const batch_size = (agent_count + config.thread_count - 1) / config.thread_count; // Ceiling division
+            const batch_size = (self.agents.items.len + config.thread_count - 1) / config.thread_count; // Ceiling division
 
             // Create and start threads
-            for (0..config.thread_count) |i| {
-                const start = i * batch_size;
-                const end = @min(start + batch_size, agent_count);
-                // Skip empty batches
-                if (start >= agent_count) continue;
-                contexts[i] = AgentUpdateContext{
+            for (0..config.thread_count) |thread_idx| {
+                const start = thread_idx * batch_size;
+                const end = @min(start + batch_size, self.agents.items.len);
+                contexts[thread_idx] = AgentUpdateContext{
                     .agents = self.agents.items,
                     .simulation = self,
                     .start_index = start,
                     .end_index = end,
                     .mutex = &mutex,
                 };
-                threads[i] = try Thread.spawn(.{}, updateAgentBatch, .{&contexts[i], config});
+                threads[thread_idx] = try Thread.spawn(.{}, updateAgentBatch, .{&contexts[thread_idx], config});
             }
             // Wait for all threads to complete
-            for (0..config.thread_count) |i| {
-                if (i * batch_size < agent_count) {
-                    threads[i].join();
+            for (0..config.thread_count) |thread_idx| {
+                if (thread_idx * batch_size < self.agents.items.len) {
+                    threads[thread_idx].join();
                 }
             }
         }
+
         // Update interactions (this remains single-threaded for simplicity)
         try self.interaction_system.update(self.agents.items);
     }

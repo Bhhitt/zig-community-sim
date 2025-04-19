@@ -97,7 +97,7 @@ pub const App = struct {
     fn processFrameHeadless(self: *App, config: AppConfig) !void {
         // Update simulation
         if (!self.paused or self.step_once) {
-            try self.simulation.update(config);
+            try self.simulation.update(self.allocator, config);
             self.step_count += 1;
             self.frames_since_check += 1;
             self.step_once = false;
@@ -164,7 +164,7 @@ pub const App = struct {
             
             // Update simulation if not paused or if step requested
             if (!self.paused or self.step_once) {
-                try self.simulation.update(config);
+                try self.simulation.update(self.allocator, config);
                 self.step_count += 1;
                 self.frames_since_check += 1;
                 self.step_once = false;

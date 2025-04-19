@@ -81,6 +81,9 @@ pub const Agent = struct {
     hunger: u8, // 0 = not hungry, higher = hungrier
     seed: u64, // Unique seed for agent's random movements
     speed: f32 = 0.4, // cells per tick (reduced for smoother movement)
+    vx: f32 = 0.0,
+    vy: f32 = 0.0,
+    smoothness: f32 = 0.0, // 0 = instant turn, 1 = very smooth/slow turn
     
     // Agent configuration
     const max_health = 100;
@@ -88,6 +91,8 @@ pub const Agent = struct {
     const health_regen = 1; // Default health regeneration
     
     pub fn init(id: usize, x: usize, y: usize, agent_type: AgentType, health: u8, energy: u8) Agent {
+        // Use smoothness from agent type's movement pattern
+        const smoothness = agent_type.getMovementPattern().smoothness;
         return .{
             .id = id,
             .x = @as(f32, @floatFromInt(x)),
@@ -96,8 +101,11 @@ pub const Agent = struct {
             .health = health,
             .energy = energy,
             .hunger = 0,
-            .seed = std.crypto.random.int(u64), // Initialize with random seed
-            .speed = 0.4, // reduced for smoother movement
+            .seed = std.crypto.random.int(u64),
+            .speed = 0.4,
+            .vx = 0.0,
+            .vy = 0.0,
+            .smoothness = smoothness,
         };
     }
     
