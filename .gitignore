@@ -22,3 +22,7 @@ perf_test.o
 
 # Benchmark results
 /tests/benchmark_results.csv
+/tests/benchmark_results_*.csv
+/benchmark_results_*.csv
+
+map_state.txt

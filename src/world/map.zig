@@ -6,6 +6,8 @@ const Interaction = @import("agent").Interaction;
 pub const Terrain = @import("terrain").Terrain;
 const crypto_random = std.crypto.random;
 
+const Thread = std.Thread;
+
 /// Represents the simulation world grid, terrain, and agent placement.
 pub const Map = struct {
     /// The width of the map grid.
@@ -16,8 +18,12 @@ pub const Map = struct {
     grid: []Terrain,
     /// The food layer: 0 = no food, >0 = food present
     food_grid: []u8,
+    /// Mutex for thread-safe access to the food grid
+    food_mutex: Thread.Mutex = .{},
     /// The allocator used to manage map resources.
     allocator: Allocator,
+    /// Reference to all agents for interaction targeting
+    simulation_agents: ?[]Agent = null,
 
     /// Initializes a new map with the given dimensions, allocator, and configuration.
     ///
@@ -54,6 +60,7 @@ pub const Map = struct {
     /// Retrieves the terrain type at the specified x, y coordinates.
     pub fn getTerrainAt(self: *const Map, x: usize, y: usize) Terrain {
         if (x >= self.width or y >= self.height) {
+            // std.debug.print("Terrain access out of bounds: ({d}, {d})\n", .{x, y});
             return .Empty; // Default for out-of-bounds
         }
         return self.grid[y * self.width + x];
@@ -74,6 +81,10 @@ pub const Map = struct {
         if (x >= self.width or y >= self.height) {
             return 0;
         }
+        // Lock for thread-safe access
+        @constCast(self).food_mutex.lock();
+        defer @constCast(self).food_mutex.unlock();
+        
         return self.food_grid[y * self.width + x];
     }
 
@@ -82,16 +93,28 @@ pub const Map = struct {
         if (x >= self.width or y >= self.height) {
             return;
         }
+        // Lock for thread-safe access
+        self.food_mutex.lock();
+        defer self.food_mutex.unlock();
+        
         self.food_grid[y * self.width + x] = food;
     }
 
     /// Regrow food randomly on the map (called each simulation step)
     pub fn regrowFood(self: *Map, regrow_chance_per_cell: f32) void {
+        // Lock once for the entire regrow operation to avoid excessive locking/unlocking
+        self.food_mutex.lock();
+        defer self.food_mutex.unlock();
+        
         for (0..self.height) |y| {
             for (0..self.width) |x| {
-                if (self.getFoodAt(x, y) == 0) {
+                if (x >= self.width or y >= self.height) continue;
+                
+                // Direct access to food_grid since we have the lock
+                const index = y * self.width + x;
+                if (self.food_grid[index] == 0) {
                     if (crypto_random.float(f32) < regrow_chance_per_cell) {
-                        self.setFoodAt(x, y, 1);
+                        self.food_grid[index] = 1;
                     }
                 }
             }

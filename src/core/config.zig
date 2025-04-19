@@ -19,4 +19,6 @@ pub const AppConfig = struct {
     perception_radius: usize = 5, // How far agents can "see" for food and other agents
     food_seek_aggressiveness_base: f32 = 0.5, // Base probability to seek food when hungry (0.0-1.0)
     food_seek_aggressiveness_hunger_coeff: f32 = 0.01, // Weight of hunger in aggressiveness
+    interaction_awareness_radius: usize = 5, // How far agents can see other agents for interactions
+    interaction_desire_chance: u8 = 30 // Chance to desire an interaction
 };

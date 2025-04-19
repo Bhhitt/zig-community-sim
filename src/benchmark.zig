@@ -20,7 +20,9 @@ pub const BenchmarkConfig = struct {
     hunger_threshold: u8 = 80,
     hunger_health_penalty: u8 = 1,
     thread_count: usize = 1,
-    perception_radius: usize = 5, // Default perception radius for agent perception system
+    interaction_awareness_radius: usize = 5,
+    interaction_desire_chance: u8 = 30,
+    perception_radius: usize = 5,
     food_seek_aggressiveness_base: f32 = 0.5,
     food_seek_aggressiveness_hunger_coeff: f32 = 0.01,
 };
@@ -171,16 +173,23 @@ pub fn runBenchmark(allocator: std.mem.Allocator, _: ?*usize, config: BenchmarkC
     std.debug.print("Agent energy (avg/min/max): {d:.2}/{d:.2}/{d:.2}\n", .{stats.avg_energy, stats.min_energy, stats.max_energy});
     
     // CSV export
-    const csv_file_result = std.fs.cwd().openFile("tests/benchmark_results.csv", .{ .mode = .write_only });
-    var csv_file = csv_file_result catch |err| blk: {
-        if (err == error.FileNotFound) {
-            break :blk try std.fs.cwd().createFile("tests/benchmark_results.csv", .{});
-        } else {
-            return err;
-        }
-    };
+    // Create a filename using benchmark parameters
+    var filename_buf: [128]u8 = undefined;
+    const filename = try std.fmt.bufPrint(
+        &filename_buf, 
+        "tests/benchmark_results_{d}_{d}_{d}.csv", 
+        .{config.agent_count, config.iterations, config.thread_count}
+    );
+    
+    var csv_file = try std.fs.cwd().createFile(filename, .{});
     defer csv_file.close();
-    try csv_file.seekFromEnd(0);
+    
+    // Write CSV header
+    try csv_file.writer().print(
+        "label,agent_count,iterations,thread_count,setup_time,sim_time,wall_time,mem_used,avg_health,min_health,max_health,avg_energy,min_energy,max_energy\n",
+        .{}
+    );
+    
     try exportCsv(
         &csv_file,
         config,
@@ -205,17 +214,50 @@ fn runAndReportBenchmark(allocator: std.mem.Allocator, _: ?*usize, config: Bench
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    // Try higher agent counts and thread counts
-    const configs = [_]BenchmarkConfig{
-        BenchmarkConfig{ .agent_count = 10000, .iterations = 500, .thread_count = 1 },
-        BenchmarkConfig{ .agent_count = 10000, .iterations = 500, .thread_count = 8 },
-        BenchmarkConfig{ .agent_count = 25000, .iterations = 200, .thread_count = 1 },
-        BenchmarkConfig{ .agent_count = 25000, .iterations = 200, .thread_count = 8 },
-        BenchmarkConfig{ .agent_count = 50000, .iterations = 100, .thread_count = 1 },
-        BenchmarkConfig{ .agent_count = 50000, .iterations = 100, .thread_count = 8 },
+    
+    // Process command line arguments for more flexible benchmarking
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+    
+    // Default configuration
+    var config = BenchmarkConfig{
+        .agent_count = 5000,
+        .iterations = 100,
+        .thread_count = 4,
     };
-    for (configs) |cfg| {
-        const label = if (cfg.thread_count == 1) "single-threaded" else "multi-threaded";
-        try runAndReportBenchmark(allocator, null, cfg, label);
+    
+    // Process command-line arguments
+    var i: usize = 1;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+        if (std.mem.eql(u8, arg, "--threads") and i + 1 < args.len) {
+            i += 1;
+            config.thread_count = try std.fmt.parseInt(usize, args[i], 10);
+        } else if (std.mem.eql(u8, arg, "--agents") and i + 1 < args.len) {
+            i += 1;
+            config.agent_count = try std.fmt.parseInt(usize, args[i], 10);
+        } else if (std.mem.eql(u8, arg, "--iterations") and i + 1 < args.len) {
+            i += 1;
+            config.iterations = try std.fmt.parseInt(usize, args[i], 10);
+        }
+    }
+    
+    // If no arguments provided, run tests with multiple thread configurations
+    if (args.len <= 1) {
+        std.debug.print("Running with default thread count series...\n", .{});
+        const thread_configs = [_]usize{1, 2, 4, 8};
+        
+        for (thread_configs) |thread_count| {
+            var thread_config = config;
+            thread_config.thread_count = thread_count;
+            const label = if (thread_count == 1) "single-threaded" else "multi-threaded";
+            try runAndReportBenchmark(allocator, null, thread_config, 
+                std.fmt.allocPrint(allocator, "{s} ({d} threads)", .{label, thread_count}) catch "benchmark");
+        }
+    } else {
+        // Run with the specific configuration from command line
+        const label = if (config.thread_count == 1) "single-threaded" else "multi-threaded";
+        try runAndReportBenchmark(allocator, null, config, 
+            std.fmt.allocPrint(allocator, "{s} ({d} threads)", .{label, config.thread_count}) catch "benchmark");
     }
 }

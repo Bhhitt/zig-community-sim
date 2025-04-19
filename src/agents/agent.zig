@@ -10,29 +10,49 @@ const MovementTendency = movement_types.MovementTendency;
 const MovementPattern = movement_types.MovementPattern;
 pub const InteractionType = @import("interaction_type").InteractionType;
 
+// States that an interaction can be in
+pub const InteractionState = enum {
+    Initiating, // Agents are moving toward each other
+    Active,     // Agents are actively interacting
+    Concluding, // Interaction is ending
+    Finishing   // Final stage of interaction (legacy name for compatibility)
+};
+
 pub const Interaction = struct {
     agent1_id: usize,
     agent2_id: usize,
     type: InteractionType,
     duration: u8, // How many more simulation ticks this interaction will last
+    state: InteractionState, // Current phase of the interaction
     
     pub fn init(agent1: Agent, agent2: Agent, interaction_type: InteractionType) Interaction {
+        // Calculate if agents are already adjacent
+        const dx = if (agent1.x > agent2.x) agent1.x - agent2.x else agent2.x - agent1.x;
+        const dy = if (agent1.y > agent2.y) agent1.y - agent2.y else agent2.y - agent1.y;
+        const manhattan_dist = dx + dy;
+        
+        // If already adjacent, start in Active state, otherwise in Initiating
+        const initial_state: InteractionState = if (manhattan_dist <= 1.0) 
+                                              InteractionState.Active 
+                                              else 
+                                              InteractionState.Initiating;
         return .{
             .agent1_id = agent1.id,
             .agent2_id = agent2.id,
             .type = interaction_type,
             .duration = 3, // Default duration
+            .state = initial_state,
         };
     }
     
     pub fn toString(self: Interaction) []const u8 {
         // Returns a string representation of the interaction
-        // Format: "Agent1 <-> Agent2 (Type, Duration left)"
+        // Format: "Agent1 <-> Agent2 (Type, State, Duration left)"
         // Note: This is a simplified version. For more details, adjust as needed.
         return std.fmt.allocPrint(
             std.heap.page_allocator,
-            "{d} <-> {d} ({s}, {d} ticks left)",
-            .{ self.agent1_id, self.agent2_id, @tagName(self.type), self.duration }
+            "{d} <-> {d} ({s}, {s}, {d} ticks left)",
+            .{ self.agent1_id, self.agent2_id, @tagName(self.type), @tagName(self.state), self.duration }
         ) catch "<interaction>";
     }
 };
@@ -91,6 +111,10 @@ pub const Agent = struct {
     nearest_food_dist: ?f32 = null,
     nearby_agent_count: usize = 0,
     
+    // Interaction tracking
+    last_interaction_partner: ?usize = null,
+    interaction_target_id: ?usize = null,
+    
     // Agent configuration
     const max_health = 100;
     const max_energy = 100;
@@ -116,6 +140,8 @@ pub const Agent = struct {
             .nearest_food_y = null,
             .nearest_food_dist = null,
             .nearby_agent_count = 0,
+            .last_interaction_partner = null,
+            .interaction_target_id = null,
         };
     }
     
