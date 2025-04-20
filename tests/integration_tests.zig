@@ -34,7 +34,7 @@ test "multiple agent types behavior" {
     // Simulate for a significant number of steps
     for (0..50) |_| {
         for (agents.items) |*agent| {
-            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{}, agents.items);
+            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{}, agents.items, 1.0);
         }
     }
     
@@ -82,8 +82,8 @@ test "agent terrain preferences" {
     
     // Simply ensure the agents can update on the terrain without errors
     for (0..50) |_| {
-        agent_update_system.updateAgent(&agents[0], &test_map.map, config.AppConfig{}, agents[0..]);
-        agent_update_system.updateAgent(&agents[1], &test_map.map, config.AppConfig{}, agents[0..]);
+        agent_update_system.updateAgent(&agents[0], &test_map.map, config.AppConfig{}, agents[0..], 1.0);
+        agent_update_system.updateAgent(&agents[1], &test_map.map, config.AppConfig{}, agents[0..], 1.0);
         
         // Verify health and energy remain valid
         try testing.expect(agents[0].health > 0 and agents[0].health <= 100);
@@ -137,7 +137,7 @@ test "agent long-term survival" {
     // Run a lengthy simulation
     for (0..200) |_| {
         for (agents.items, 0..) |*agent, i| {
-            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{}, agents.items);
+            agent_update_system.updateAgent(agent, &test_map.map, config.AppConfig{}, agents.items, 1.0);
             try health_history[i].append(agent.health);
         }
     }

@@ -24,6 +24,7 @@ pub const App = struct {
     frames_since_check: usize,
     last_performance_check: i64,
     current_fps: f32,
+    last_sim_update_time: i64 = 0, // Track last simulation update time
     
     pub fn init(allocator: std.mem.Allocator, config: AppConfig) !App {
         // Initialize simulation
@@ -37,7 +38,7 @@ pub const App = struct {
             sdl_renderer = try SdlRenderer.init(config.map_width, config.map_height);
             stats_window = try StatsWindow.init();
         }
-        
+        const now = std.time.milliTimestamp();
         return App{
             .allocator = allocator,
             .config = config,
@@ -51,8 +52,9 @@ pub const App = struct {
             .quit = false,
             .step_count = 0,
             .frames_since_check = 0,
-            .last_performance_check = std.time.milliTimestamp(),
+            .last_performance_check = now,
             .current_fps = 0,
+            .last_sim_update_time = now,
         };
     }
     
@@ -97,7 +99,11 @@ pub const App = struct {
     fn processFrameHeadless(self: *App, config: AppConfig) !void {
         // Update simulation
         if (!self.paused or self.step_once) {
-            try self.simulation.update(self.allocator, config);
+            const now = std.time.milliTimestamp();
+            const delta_ms = now - self.last_sim_update_time;
+            const delta_time = @as(f32, @floatFromInt(delta_ms)) / 1000.0;
+            try self.simulation.update(self.allocator, config, delta_time);
+            self.last_sim_update_time = now;
             self.step_count += 1;
             self.frames_since_check += 1;
             self.step_once = false;
@@ -164,7 +170,11 @@ pub const App = struct {
             
             // Update simulation if not paused or if step requested
             if (!self.paused or self.step_once) {
-                try self.simulation.update(self.allocator, config);
+                const now = std.time.milliTimestamp();
+                const delta_ms = now - self.last_sim_update_time;
+                const delta_time = @as(f32, @floatFromInt(delta_ms)) / 1000.0;
+                try self.simulation.update(self.allocator, config, delta_time);
+                self.last_sim_update_time = now;
                 self.step_count += 1;
                 self.frames_since_check += 1;
                 self.step_once = false;
@@ -175,7 +185,6 @@ pub const App = struct {
                 
                 if (elapsed >= 1000) {
                     self.current_fps = @as(f32, @floatFromInt(self.frames_since_check)) * 1000.0 / @as(f32, @floatFromInt(elapsed));
-                    
                     self.frames_since_check = 0;
                     self.last_performance_check = current_time;
                 }

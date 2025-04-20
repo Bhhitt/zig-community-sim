@@ -26,7 +26,7 @@ test "hunger resets to 0 when eating food" {
     map.setFoodAt(2, 2, 1);
     var agent = Agent.init(0, 2, 2, .Settler, 100, 100);
     agent.hunger = 50;
-    agent_update_system.updateAgent(&agent, &map, DummyConfig{}, &[_]Agent{agent});
+    agent_update_system.updateAgent(&agent, &map, DummyConfig{}, &[_]Agent{agent}, 1.0);
     // The agent may not eat if it moves off the food tile in the update step
     // So, pass test if hunger is either 0 (ate) or unchanged (did not eat)
     try std.testing.expect(agent.hunger == 0 or agent.hunger == 51);
@@ -48,7 +48,7 @@ test "health penalty applied when hunger exceeds threshold" {
     var agent = Agent.init(0, 2, 2, .Settler, 100, 100);
     agent.hunger = 90; // above threshold
     agent.health = 50;
-    agent_update_system.updateAgent(&agent, &map, DummyConfig{}, &[_]Agent{agent});
+    agent_update_system.updateAgent(&agent, &map, DummyConfig{}, &[_]Agent{agent}, 1.0);
     try std.testing.expect(agent.health == 45);
 }
 
@@ -59,6 +59,6 @@ test "no health penalty when hunger below threshold" {
     var agent = Agent.init(0, 2, 2, .Settler, 100, 100);
     agent.hunger = 40; // below threshold
     agent.health = 50;
-    agent_update_system.updateAgent(&agent, &map, DummyConfig{}, &[_]Agent{agent});
+    agent_update_system.updateAgent(&agent, &map, DummyConfig{}, &[_]Agent{agent}, 1.0);
     try std.testing.expect(agent.health == 50);
 }

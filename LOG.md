@@ -1,5 +1,10 @@
 # Development Log
 
+## 2025-04-19 — Git Cleanup and map_state.txt Handling
+- Resolved git divergence and merge conflicts involving map_state.txt
+- Deleted map_state.txt and added it to .gitignore; it is now always generated and never tracked
+- Updated README to clarify map_state.txt handling for users
+
 ## 2025-04-18 — Food Regrowth Granularity, Config, and Output Cleanup
 - Made `food_regrow_chance` a float (f32) for fine-grained control; can now set to very small probabilities (e.g., 0.0001)
 - All food/hunger parameters are now easily configurable in `src/core/config.zig`

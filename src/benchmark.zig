@@ -146,7 +146,7 @@ pub fn runBenchmark(allocator: std.mem.Allocator, _: ?*usize, config: BenchmarkC
     // Run iterations
     for (0..config.iterations) |i| {
         const iteration_start = std.time.milliTimestamp();
-        try simulation.update(allocator, config);
+        try simulation.update(allocator, config, 1.0);
         const iteration_time = std.time.milliTimestamp() - iteration_start;
         
         if (i % 10 == 0 or i == config.iterations - 1) {

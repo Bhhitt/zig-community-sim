@@ -29,7 +29,7 @@ test "parallel agent updates basic" {
 
     // Run several update iterations (should use multi-threading internally)
     for (0..iterations) |_| {
-        try sim.update(allocator, config_mod.AppConfig{});
+        try sim.update(allocator, config_mod.AppConfig{}, 1.0);
     }
 
     // Check that all agents are still within map bounds and alive
@@ -75,8 +75,8 @@ test "parallel vs single-threaded consistency" {
     for (0..iterations) |_| {
         // Temporarily set thread_count = 1 for sim_single
         // (Assume Simulation.update uses global or static for thread_count)
-        try sim_single.update(allocator, config_mod.AppConfig{});
-        try sim_parallel.update(allocator, config_mod.AppConfig{});
+        try sim_single.update(allocator, config_mod.AppConfig{}, 1.0);
+        try sim_parallel.update(allocator, config_mod.AppConfig{}, 1.0);
     }
 
     // Compare agents (allow for some nondeterminism, but check invariants)
@@ -115,7 +115,7 @@ test "high contention parallel update" {
     }
 
     for (0..iterations) |_| {
-        try sim.update(allocator, config_mod.AppConfig{});
+        try sim.update(allocator, config_mod.AppConfig{}, 1.0);
     }
 
     // Check all agents are still alive and within bounds

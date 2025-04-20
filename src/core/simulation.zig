@@ -109,9 +109,9 @@ pub const Simulation = struct {
     }
 
     // Safe agent update function for single-threaded mode
-    fn safeUpdateAgentSingleThreaded(agent: *Agent, map: *Map, config: anytype, all_agents: []Agent) void {
+    fn safeUpdateAgentSingleThreaded(agent: *Agent, map: *Map, config: anytype, all_agents: []Agent, delta_time: f32) void {
         // Update agent, passing the map for terrain interactions, including all agents for perception
-        agent_update_system.updateAgent(agent, map, config, all_agents);
+        agent_update_system.updateAgent(agent, map, config, all_agents, delta_time);
 
         // Map bounds are now checked within the agent update, but just to be safe
         if (agent.x >= @as(f32, @floatFromInt(map.width))) {
@@ -132,7 +132,7 @@ pub const Simulation = struct {
         std.debug.print("WARNING: safeUpdateAgentThreaded called directly\n", .{});
     }
 
-    pub fn update(self: *Simulation, allocator: std.mem.Allocator, config: anytype) !void {
+    pub fn update(self: *Simulation, allocator: std.mem.Allocator, config: anytype, delta_time: f32) !void {
         // Regrow food every step with config value (now f32)
         self.map.regrowFood(config.food_regrow_chance);
         
@@ -175,11 +175,11 @@ pub const Simulation = struct {
             if (self.thread_pool) |*thread_pool| {
                 // Process all agents using the thread pool
                 // Create a slice for all agents at once
-                try thread_pool.processBatch(free_agents.items, &self.map, config);
+                try thread_pool.processBatch(free_agents.items, &self.map, config, delta_time);
             } else {
                 // Fallback to single-threaded mode
                 for (free_agents.items) |agent| {
-                    safeUpdateAgentSingleThreaded(agent, &self.map, config, self.agents.items);
+                    safeUpdateAgentSingleThreaded(agent, &self.map, config, self.agents.items, delta_time);
                 }
             }
         } else {
@@ -187,7 +187,7 @@ pub const Simulation = struct {
             std.debug.print("Using single-threaded mode for agent updates\n", .{});
             
             for (free_agents.items) |agent| {
-                safeUpdateAgentSingleThreaded(agent, &self.map, config, self.agents.items);
+                safeUpdateAgentSingleThreaded(agent, &self.map, config, self.agents.items, delta_time);
             }
         }
         
@@ -276,7 +276,7 @@ pub const ThreadPool = struct {
     }
     
     // Worker thread function that processes agents from the shared queue
-    fn workerThreadFn(self: *ThreadPool, thread_id: usize, config_ptr: *const anyopaque) void {
+    fn workerThreadFn(self: *ThreadPool, thread_id: usize, config_ptr: *const anyopaque, delta_time: f32) void {
         // We can't directly inspect anyopaque type, so we'll use our thread_config instead
         // This avoids issues with trying to get the type of an opaque pointer
         _ = config_ptr; // Acknowledge the parameter but don't use it directly
@@ -319,7 +319,7 @@ pub const ThreadPool = struct {
                 };
                 
                 // Process the agent with our thread-safe configuration
-                agent_update_system.updateAgent(valid_agent, self.map, thread_safe_config, all_agents);
+                agent_update_system.updateAgent(valid_agent, self.map, thread_safe_config, all_agents, delta_time);
                 
                 // Mark as processed
                 self.mutex.lock();
@@ -354,7 +354,8 @@ pub const ThreadPool = struct {
         self: *ThreadPool,
         agents: []*Agent,
         map: *Map,
-        config: anytype
+        config: anytype,
+        delta_time: f32
     ) !void {
         if (!self.initialized) return error.ThreadPoolNotInitialized;
         if (agents.len == 0) return;
@@ -401,7 +402,7 @@ pub const ThreadPool = struct {
         
         // Create and start the worker threads
         for (0..self.thread_count) |i| {
-            self.threads[i] = try Thread.spawn(.{}, workerThreadFn, .{self, i, config_ptr});
+            self.threads[i] = try Thread.spawn(.{}, workerThreadFn, .{self, i, config_ptr, delta_time});
         }
         
         // Wait for all agents to be processed

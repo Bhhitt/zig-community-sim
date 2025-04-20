@@ -59,7 +59,7 @@ pub fn updateAgentPerception(agent: *Agent, agents: []const Agent, map: *const M
     agent.nearby_agent_count = count;
 }
 
-pub fn updateAgent(agent: *Agent, map: *Map, config: anytype, agents: []const Agent) void {
+pub fn updateAgent(agent: *Agent, map: *Map, config: anytype, agents: []const Agent, delta_time: f32) void {
     // Perception: update what this agent can "see"
     // Use a default perception radius if not provided in config
     const perception_radius = if (@hasField(@TypeOf(config), "perception_radius")) 
@@ -94,9 +94,9 @@ pub fn updateAgent(agent: *Agent, map: *Map, config: anytype, agents: []const Ag
         agent.vx = target_dx;
         agent.vy = target_dy;
     }
-    // Update position
-    agent.x += agent.vx;
-    agent.y += agent.vy;
+    // Update position (frame-rate independent)
+    agent.x += agent.vx * delta_time;
+    agent.y += agent.vy * delta_time;
     // --- End smooth movement ---
     
     // Clamp agent.x and agent.y to valid map bounds before using @intFromFloat
